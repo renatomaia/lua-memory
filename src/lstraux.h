@@ -15,32 +15,32 @@
 
 
 
-#ifndef LUASTREAMLIB_API
-#define LUASTREAMLIB_API LUALIB_API
+#ifndef LUABUFLIB_API
+#define LUABUFLIB_API LUALIB_API
 #endif
 
-#ifndef LUASTREAMMOD_API
-#define LUASTREAMMOD_API LUAMOD_API
+#ifndef LUABUFMOD_API
+#define LUABUFMOD_API LUAMOD_API
 #endif
 
 
 
 /*
-** A buffer is a userdata with metatable 'LUASTREAM_BUFFER'.
+** A buffer is a userdata with metatable 'LUABUF_BUFFER'.
 */
 
-#define LUASTREAM_BUFFER	"char*"
+#define LUABUF_BUFFER	"char*"
 
 
-#define luastream_isbuffer(L,I)	(luaL_testudata (L,I,LUASTREAM_BUFFER) != NULL)
+#define luabuf_isbuffer(L,I)	(luaL_testudata (L,I,LUABUF_BUFFER) != NULL)
 
 
-LUASTREAMLIB_API char *      (luastream_newbuffer) (lua_State *L, size_t len);
-LUASTREAMLIB_API int         (luastream_isstream) (lua_State *L, int idx);
-LUASTREAMLIB_API char *      (luastream_tobuffer) (lua_State *L, int idx, size_t *len);
-LUASTREAMLIB_API const char *(luastream_tostream) (lua_State *L, int idx, size_t *len);
-LUASTREAMLIB_API char *      (luastream_checkbuffer) (lua_State *L, int arg, size_t *len);
-LUASTREAMLIB_API const char *(luastream_checkstream) (lua_State *L, int arg, size_t *len);
+LUABUFLIB_API char *      (luabuf_newbuffer) (lua_State *L, size_t len);
+LUABUFLIB_API int         (luabuf_isstream) (lua_State *L, int idx);
+LUABUFLIB_API char *      (luabuf_tobuffer) (lua_State *L, int idx, size_t *len);
+LUABUFLIB_API const char *(luabuf_tostream) (lua_State *L, int idx, size_t *len);
+LUABUFLIB_API char *      (luabuf_checkbuffer) (lua_State *L, int arg, size_t *len);
+LUABUFLIB_API const char *(luabuf_checkstream) (lua_State *L, int arg, size_t *len);
 
 /*
 ** {======================================================
@@ -48,23 +48,23 @@ LUASTREAMLIB_API const char *(luastream_checkstream) (lua_State *L, int arg, siz
 ** =======================================================
 */
 
-#define luastream_Buffer	luaL_Buffer
-#define luastream_addchar	luaL_addchar
-#define luastream_addsize	luaL_addsize
-#define luastream_prepbuffsize	luaL_prepbuffsize
-#define luastream_prepbuffer	luaL_prepbuffer
-#define luastream_addstream	luaL_addlstring
-#define luastream_addlstring	luaL_addlstring
-#define luastream_addstring	luaL_addstring
-#define luastream_pushresult	luaL_pushresult
-#define luastream_pushresultsize	luaL_pushresultsize
-#define luastream_buffinit	luaL_buffinit
-#define luastream_buffinitsize	luaL_buffinitsize
+#define luabuf_Buffer	luaL_Buffer
+#define luabuf_addchar	luaL_addchar
+#define luabuf_addsize	luaL_addsize
+#define luabuf_prepbuffsize	luaL_prepbuffsize
+#define luabuf_prepbuffer	luaL_prepbuffer
+#define luabuf_addstream	luaL_addlstring
+#define luabuf_addlstring	luaL_addlstring
+#define luabuf_addstring	luaL_addstring
+#define luabuf_pushresult	luaL_pushresult
+#define luabuf_pushresultsize	luaL_pushresultsize
+#define luabuf_buffinit	luaL_buffinit
+#define luabuf_buffinitsize	luaL_buffinitsize
 
 
-LUASTREAMLIB_API void (luastream_addvalue) (luastream_Buffer *B);
-LUASTREAMLIB_API void (luastream_pushresbuf) (luastream_Buffer *B);
-LUASTREAMLIB_API void (luastream_pushresbufsize) (luastream_Buffer *B, size_t sz);
+LUABUFLIB_API void (luabuf_addvalue) (luabuf_Buffer *B);
+LUABUFLIB_API void (luabuf_pushresbuf) (luabuf_Buffer *B);
+LUABUFLIB_API void (luabuf_pushresbufsize) (luabuf_Buffer *B, size_t sz);
 
 /* }====================================================== */
 

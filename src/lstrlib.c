@@ -38,7 +38,7 @@
 
 static int str_len (lua_State *L) {
 	size_t l;
-	luastream_checkstream(L, 1, &l);
+	luabuf_checkstream(L, 1, &l);
 	lua_pushinteger(L, (lua_Integer)l);
 	return 1;
 }
@@ -46,15 +46,15 @@ static int str_len (lua_State *L) {
 
 
 static int str_isbuffer (lua_State *L) {
-	lua_pushboolean(L, luastream_isbuffer(L, 1));
+	lua_pushboolean(L, luabuf_isbuffer(L, 1));
 	return 1;
 }
 
 
 static int str_diff (lua_State *L) {
 	size_t l1, l2;
-	const char *s1 = luastream_checkstream(L, 1, &l1);
-	const char *s2 = luastream_checkstream(L, 2, &l2);
+	const char *s1 = luabuf_checkstream(L, 1, &l1);
+	const char *s2 = luabuf_checkstream(L, 2, &l2);
 	size_t i, n=(l1<l2 ? l1 : l2);
 	for (i=0; (i<n) && (s1[i]==s2[i]); ++i);
 	if (i<n) {
@@ -73,7 +73,7 @@ static int str_diff (lua_State *L) {
 
 static int str_tostring (lua_State *L) {
 	size_t l;
-	const char *s = luastream_checkstream(L, 1, &l);
+	const char *s = luabuf_checkstream(L, 1, &l);
 	lua_Integer start = luastreamI_posrelat(luaL_optinteger(L, 2, 1), l);
 	lua_Integer end = luastreamI_posrelat(luaL_optinteger(L, 3, -1), l);
 	if (start < 1) start = 1;
@@ -102,7 +102,7 @@ static int str_reverse (lua_State *L) {
 	size_t l;
 	int op = luaL_checkoption(L, 1, NULL, inoutops);
 	if (op == 2) { /* inplace */
-		char *p = luastream_checkbuffer(L, 2, &l);
+		char *p = luabuf_checkbuffer(L, 2, &l);
 		size_t i;
 		for (i = 0; i <= l/2; ++i) {
 			size_t j = l - i - 1;
@@ -111,14 +111,14 @@ static int str_reverse (lua_State *L) {
 			p[j] = t;
 		}
 	} else {
-		const char *s = luastream_checkstream(L, 2, &l);
+		const char *s = luabuf_checkstream(L, 2, &l);
 		if (op == 0) { /* string */
-			luastream_Buffer b;
-			char *p = luastream_buffinitsize(L, &b, l);
+			luabuf_Buffer b;
+			char *p = luabuf_buffinitsize(L, &b, l);
 			copyreverse(p, s, l);
-			luastream_pushresultsize(&b, l);
+			luabuf_pushresultsize(&b, l);
 		} else { /* buffer */
-			char *p = luastream_newbuffer(L, l);
+			char *p = luabuf_newbuffer(L, l);
 			copyreverse(p, s, l);
 		}
 	}
@@ -136,15 +136,15 @@ static void copylower (char *p, const char *s, size_t l) {
 static int str_lower (lua_State *L) {
 	size_t l;
 	int op = luaL_checkoption(L, 1, NULL, inoutops);
-	const char *s = luastream_checkstream(L, 2, &l);
+	const char *s = luabuf_checkstream(L, 2, &l);
 	if (op == 0) { /* string */
-		luastream_Buffer b;
-		char *p = luastream_buffinitsize(L, &b, l);
+		luabuf_Buffer b;
+		char *p = luabuf_buffinitsize(L, &b, l);
 		copylower(p, s, l);
-		luastream_pushresultsize(&b, l);
+		luabuf_pushresultsize(&b, l);
 	} else {
-		char *p = (op == 1) ? luastream_newbuffer(L, l)
-		                    : luastream_checkbuffer(L, 2, NULL);
+		char *p = (op == 1) ? luabuf_newbuffer(L, l)
+		                    : luabuf_checkbuffer(L, 2, NULL);
 		copylower(p, s, l);
 	}
 	return 1;
@@ -161,15 +161,15 @@ static void copyupper (char *p, const char *s, size_t l) {
 static int str_upper (lua_State *L) {
 	size_t l;
 	int op = luaL_checkoption(L, 1, NULL, inoutops);
-	const char *s = luastream_checkstream(L, 2, &l);
+	const char *s = luabuf_checkstream(L, 2, &l);
 	if (op == 0) { /* string */
-		luastream_Buffer b;
-		char *p = luastream_buffinitsize(L, &b, l);
+		luabuf_Buffer b;
+		char *p = luabuf_buffinitsize(L, &b, l);
 		copyupper(p, s, l);
-		luastream_pushresultsize(&b, l);
+		luabuf_pushresultsize(&b, l);
 	} else {
-		char *p = (op == 1) ? luastream_newbuffer(L, l)
-		                    : luastream_checkbuffer(L, 2, NULL);
+		char *p = (op == 1) ? luabuf_newbuffer(L, l)
+		                    : luabuf_checkbuffer(L, 2, NULL);
 		copyupper(p, s, l);
 	}
 	return 1;
@@ -196,23 +196,23 @@ static void copyrepeat (char *p,
 static int str_rep (lua_State *L) {
 	size_t l, lsep;
 	int op = luaL_checkoption(L, 1, NULL, outops);
-	const char *s = luastream_checkstream(L, 2, &l);
+	const char *s = luabuf_checkstream(L, 2, &l);
 	lua_Integer n = luaL_checkinteger(L, 3);
 	const char *sep = luaL_optlstring(L, 4, "", &lsep);
 	if (n <= 0) {
 		if (op == 0) lua_pushliteral(L, "");
-		else luastream_newbuffer(L, 0);
-	} else if (l + lsep < l || l + lsep > LUASTREAM_MAXSIZE / n)  /* may overflow? */
+		else luabuf_newbuffer(L, 0);
+	} else if (l + lsep < l || l + lsep > LUABUF_MAXSIZE / n)  /* may overflow? */
 		return luaL_error(L, "resulting string too large");
 	else {
 		size_t totallen = (size_t)n * l + (size_t)(n - 1) * lsep;
 		if (op == 0) {  /* string */
-			luastream_Buffer b;
-			char *p = luastream_buffinitsize(L, &b, totallen);
+			luabuf_Buffer b;
+			char *p = luabuf_buffinitsize(L, &b, totallen);
 			copyrepeat(p, s, l, sep, lsep, n);
-			luastream_pushresultsize(&b, totallen);
+			luabuf_pushresultsize(&b, totallen);
 		} else {
-			char *p = luastream_newbuffer(L, totallen);
+			char *p = luabuf_newbuffer(L, totallen);
 			copyrepeat(p, s, l, sep, lsep, n);
 		}
 	}
@@ -222,7 +222,7 @@ static int str_rep (lua_State *L) {
 
 static int str_byte (lua_State *L) {
 	size_t l;
-	const char *s = luastream_checkstream(L, 1, &l);
+	const char *s = luabuf_checkstream(L, 1, &l);
 	return luastreamI_str2byte(L, s, l);
 }
 
@@ -231,12 +231,12 @@ static int str_char (lua_State *L) {
 	int n = lua_gettop(L)-1;  /* number of bytes */
 	int op = luaL_checkoption(L, 1, NULL, outops);
 	if (op == 0) {
-		luastream_Buffer b;
-		char *p = luastream_buffinitsize(L, &b, n);
+		luabuf_Buffer b;
+		char *p = luabuf_buffinitsize(L, &b, n);
 		luastreamI_code2char(L, 2, p, n);
-		luastream_pushresultsize(&b, n);
+		luabuf_pushresultsize(&b, n);
 	} else {
-		char *p = luastream_newbuffer(L, n);
+		char *p = luabuf_newbuffer(L, n);
 		luastreamI_code2char(L, 2, p, n);
 	}
 	return 1;
@@ -245,22 +245,22 @@ static int str_char (lua_State *L) {
 
 static int writer (lua_State *L, const void *b, size_t size, void *B) {
 	(void)L;
-	luastream_addstream((luastream_Buffer *) B, (const char *)b, size);
+	luabuf_addstream((luabuf_Buffer *) B, (const char *)b, size);
 	return 0;
 }
 
 
 static int str_dump (lua_State *L) {
-	luastream_Buffer b;
+	luabuf_Buffer b;
 	int strip = lua_toboolean(L, 3);
 	int op = luaL_checkoption(L, 1, NULL, outops);
 	luaL_checktype(L, 2, LUA_TFUNCTION);
 	lua_settop(L, 1);
-	luastream_buffinit(L,&b);
+	luabuf_buffinit(L,&b);
 	if (lua_dump(L, writer, &b, strip) != 0)
 		return luaL_error(L, "unable to dump given function");
-	if (op == 0) luastream_pushresult(&b);
-	else luastream_pushresbuf(&b);
+	if (op == 0) luabuf_pushresult(&b);
+	else luabuf_pushresbuf(&b);
 	return 1;
 }
 
@@ -656,8 +656,8 @@ static int nospecials (const char *p, size_t l) {
 
 static int str_find_aux (lua_State *L, int find) {
 	size_t ls, lp;
-	const char *s = luastream_checkstream(L, 1, &ls);
-	const char *p = luastream_checkstream(L, 2, &lp);
+	const char *s = luabuf_checkstream(L, 1, &ls);
+	const char *p = luabuf_checkstream(L, 2, &lp);
 	lua_Integer init = luastreamI_posrelat(luaL_optinteger(L, 3, 1), ls);
 	if (init < 1) init = 1;
 	else if (init > (lua_Integer)ls + 1) {  /* start after string's end? */
@@ -719,8 +719,8 @@ static int str_match (lua_State *L) {
 static int gmatch_aux (lua_State *L) {
 	MatchState ms;
 	size_t ls, lp;
-	const char *s = luastream_tostream(L, lua_upvalueindex(1), &ls);
-	const char *p = luastream_tostream(L, lua_upvalueindex(2), &lp);
+	const char *s = luabuf_tostream(L, lua_upvalueindex(1), &ls);
+	const char *p = luabuf_tostream(L, lua_upvalueindex(2), &lp);
 	const char *src;
 	ms.L = L;
 	ms.matchdepth = MAXCCALLS;
@@ -746,8 +746,8 @@ static int gmatch_aux (lua_State *L) {
 
 
 static int str_gmatch (lua_State *L) {
-	luastream_checkstream(L, 1, NULL);
-	luastream_checkstream(L, 2, NULL);
+	luabuf_checkstream(L, 1, NULL);
+	luabuf_checkstream(L, 2, NULL);
 	lua_settop(L, 2);
 	lua_pushinteger(L, 0);
 	lua_pushcclosure(L, gmatch_aux, 3);
@@ -755,23 +755,23 @@ static int str_gmatch (lua_State *L) {
 }
 
 
-static void add_s (MatchState *ms, luastream_Buffer *b, const char *s,
+static void add_s (MatchState *ms, luabuf_Buffer *b, const char *s,
                                                         const char *e) {
 	size_t l, i;
 	lua_State *L = ms->L;
-	const char *news = luastream_tostream(L, 3, &l);
+	const char *news = luabuf_tostream(L, 3, &l);
 	for (i = 0; i < l; i++) {
 		if (news[i] != L_ESC)
-			luastream_addchar(b, news[i]);
+			luabuf_addchar(b, news[i]);
 		else {
 			i++;  /* skip ESC */
 			if (!isdigit(uchar(news[i]))) {
 				if (news[i] != L_ESC)
 					luaL_error(L, "invalid use of '%c' in replacement string", L_ESC);
-				luastream_addchar(b, news[i]);
+				luabuf_addchar(b, news[i]);
 			}
 			else if (news[i] == '0')
-				luastream_addstream(b, s, e - s);
+				luabuf_addstream(b, s, e - s);
 			else {
 				push_onecapture(ms, news[i] - '1', s, e);
 				luaL_tolstring(L, -1, NULL);  /* if number, convert it to string */
@@ -784,7 +784,7 @@ static void add_s (MatchState *ms, luastream_Buffer *b, const char *s,
 
 
 static void add_value (MatchState *ms,
-                       luastream_Buffer *b,
+                       luabuf_Buffer *b,
                        const char *s,
                        const char *e,
                        int tr) {
@@ -820,18 +820,18 @@ static void add_value (MatchState *ms,
 static int str_gsub (lua_State *L) {
 	size_t srcl, lp;
 	int op = luaL_checkoption(L, 1, NULL, outops);
-	const char *src = luastream_checkstream(L, 2, &srcl);
-	const char *p = luastream_checkstream(L, 3, &lp);
+	const char *src = luabuf_checkstream(L, 2, &srcl);
+	const char *p = luabuf_checkstream(L, 3, &lp);
 	int tr = lua_type(L, 4);
 	lua_Integer max_s = luaL_optinteger(L, 5, srcl + 1);
 	int anchor = (*p == '^');
 	lua_Integer n = 0;
 	MatchState ms;
-	luastream_Buffer b;
+	luabuf_Buffer b;
 	luaL_argcheck(L, tr == LUA_TNUMBER || tr == LUA_TSTRING ||
 	                 tr == LUA_TFUNCTION || tr == LUA_TTABLE, 3,
 	                    "string/function/table expected");
-	luastream_buffinit(L, &b);
+	luabuf_buffinit(L, &b);
 	if (anchor) {
 		p++; lp--;  /* skip anchor character */
 	}
@@ -852,13 +852,13 @@ static int str_gsub (lua_State *L) {
 		if (e && e>src) /* non empty match? */
 			src = e;  /* skip it */
 		else if (src < ms.src_end)
-			luastream_addchar(&b, *src++);
+			luabuf_addchar(&b, *src++);
 		else break;
 		if (anchor) break;
 	}
-	luastream_addstream(&b, src, ms.src_end-src);
-	if (op == 0) luastream_pushresult(&b);
-	else luastream_pushresbuf(&b);
+	luabuf_addstream(&b, src, ms.src_end-src);
+	if (op == 0) luabuf_pushresult(&b);
+	else luabuf_pushresbuf(&b);
 	lua_pushinteger(L, n);  /* number of substitutions */
 	return 2;
 }
@@ -886,14 +886,14 @@ static int str_gsub (lua_State *L) {
 #define MAX_FORMAT	(sizeof(FLAGS) + 2 + 10)
 
 
-static void addquoted (lua_State *L, luastream_Buffer *b, int arg) {
+static void addquoted (lua_State *L, luabuf_Buffer *b, int arg) {
 	size_t l;
-	const char *s = luastream_checkstream(L, arg, &l);
-	luastream_addchar(b, '"');
+	const char *s = luabuf_checkstream(L, arg, &l);
+	luabuf_addchar(b, '"');
 	while (l--) {
 		if (*s == '"' || *s == '\\' || *s == '\n') {
-			luastream_addchar(b, '\\');
-			luastream_addchar(b, *s);
+			luabuf_addchar(b, '\\');
+			luabuf_addchar(b, *s);
 		}
 		else if (*s == '\0' || iscntrl(uchar(*s))) {
 			char buff[10];
@@ -901,13 +901,13 @@ static void addquoted (lua_State *L, luastream_Buffer *b, int arg) {
 				sprintf(buff, "\\%d", (int)uchar(*s));
 			else
 				sprintf(buff, "\\%03d", (int)uchar(*s));
-			luastream_addstring(b, buff);
+			luabuf_addstring(b, buff);
 		}
 		else
-			luastream_addchar(b, *s);
+			luabuf_addchar(b, *s);
 		s++;
 	}
-	luastream_addchar(b, '"');
+	luabuf_addchar(b, '"');
 }
 
 static const char *scanformat (lua_State *L, const char *strfrmt, char *form) {
@@ -952,16 +952,16 @@ static int str_format (lua_State *L) {
 	int op = luaL_checkoption(L, arg++, NULL, outops);
 	const char *strfrmt = luaL_checklstring(L, arg, &sfl);
 	const char *strfrmt_end = strfrmt+sfl;
-	luastream_Buffer b;
-	luastream_buffinit(L, &b);
+	luabuf_Buffer b;
+	luabuf_buffinit(L, &b);
 	while (strfrmt < strfrmt_end) {
 		if (*strfrmt != L_ESC)
-			luastream_addchar(&b, *strfrmt++);
+			luabuf_addchar(&b, *strfrmt++);
 		else if (*++strfrmt == L_ESC)
-			luastream_addchar(&b, *strfrmt++);  /* %% */
+			luabuf_addchar(&b, *strfrmt++);  /* %% */
 		else { /* format item */
 			char form[MAX_FORMAT];  /* to store the format ('%...') */
-			char *buff = luastream_prepbuffsize(&b, MAX_ITEM);  /* to put formatted item */
+			char *buff = luabuf_prepbuffsize(&b, MAX_ITEM);  /* to put formatted item */
 			int nb = 0;  /* number of bytes in added item */
 			if (++arg > top)
 				luaL_argerror(L, arg, "no value");
@@ -1014,8 +1014,8 @@ static int str_format (lua_State *L) {
 			luaL_addsize(&b, nb);
 		}
 	}
-	if (op == 0) luastream_pushresult(&b);
-	else luastream_pushresbuf(&b);
+	if (op == 0) luabuf_pushresult(&b);
+	else luabuf_pushresbuf(&b);
 	return 1;
 }
 
@@ -1113,7 +1113,7 @@ static int getnum (const char **fmt, int df) {
 		int a = 0;
 		do {
 			a = a*10 + (*((*fmt)++) - '0');
-		} while (digit(**fmt) && a <= ((int)LUASTREAM_MAXSIZE - 9)/10);
+		} while (digit(**fmt) && a <= ((int)LUABUF_MAXSIZE - 9)/10);
 		return a;
 	}
 }
@@ -1219,9 +1219,9 @@ static KOption getdetails (Header *h, size_t totalsize,
 ** the size of a Lua integer, correcting the extra sign-extension
 ** bytes if necessary (by default they would be zeros).
 */
-static void packint (luastream_Buffer *b, lua_Unsigned n,
+static void packint (luabuf_Buffer *b, lua_Unsigned n,
                      int islittle, int size, int neg) {
-	char *buff = luastream_prepbuffsize(b, size);
+	char *buff = luabuf_prepbuffsize(b, size);
 	int i;
 	buff[islittle ? 0 : size - 1] = (char)(n & MC);  /* first byte */
 	for (i = 1; i < size; i++) {
@@ -1255,7 +1255,7 @@ static void copywithendian (volatile char *dest, volatile const char *src,
 
 
 static int str_pack (lua_State *L) {
-	luastream_Buffer b;
+	luabuf_Buffer b;
 	Header h;
 	int arg = 1;  /* current argument to pack */
 	int op = luaL_checkoption(L, arg++, NULL, outops);
@@ -1263,13 +1263,13 @@ static int str_pack (lua_State *L) {
 	size_t totalsize = 0;  /* accumulate total size of result */
 	initheader(L, &h);
 	lua_pushnil(L);  /* mark to separate arguments from string buffer */
-	luastream_buffinit(L, &b);
+	luabuf_buffinit(L, &b);
 	while (*fmt != '\0') {
 		int size, ntoalign;
 		KOption opt = getdetails(&h, totalsize, &fmt, &size, &ntoalign);
 		totalsize += ntoalign + size;
 		while (ntoalign-- > 0)
-		 luastream_addchar(&b, LUA_PACKPADBYTE);  /* fill alignment */
+		 luabuf_addchar(&b, LUA_PACKPADBYTE);  /* fill alignment */
 		arg++;
 		switch (opt) {
 			case Kint: {  /* signed integers */
@@ -1291,7 +1291,7 @@ static int str_pack (lua_State *L) {
 			}
 			case Kfloat: {  /* floating-point options */
 				volatile Ftypes u;
-				char *buff = luastream_prepbuffsize(&b, size);
+				char *buff = luabuf_prepbuffsize(&b, size);
 				lua_Number n = luaL_checknumber(L, arg);  /* get argument */
 				if (size == sizeof(u.f)) u.f = (float)n;  /* copy it into 'u' */
 				else if (size == sizeof(u.d)) u.d = (double)n;
@@ -1303,39 +1303,39 @@ static int str_pack (lua_State *L) {
 			}
 			case Kchar: {  /* fixed-size string */
 				size_t len;
-				const char *s = luastream_checkstream(L, arg, &len);
+				const char *s = luabuf_checkstream(L, arg, &len);
 				luaL_argcheck(L, len == (size_t)size, arg, "wrong length");
-				luastream_addstream(&b, s, size);
+				luabuf_addstream(&b, s, size);
 				break;
 			}
 			case Kstring: {  /* strings with length count */
 				size_t len;
-				const char *s = luastream_checkstream(L, arg, &len);
+				const char *s = luabuf_checkstream(L, arg, &len);
 				luaL_argcheck(L, size >= (int)sizeof(size_t) ||
 				                 len < ((size_t)1 << (size * NB)),
 				                 arg, "string length does not fit in given size");
 				packint(&b, (lua_Unsigned)len, h.islittle, size, 0);  /* pack length */
-				luastream_addstream(&b, s, len);
+				luabuf_addstream(&b, s, len);
 				totalsize += len;
 				break;
 			}
 			case Kzstr: {  /* zero-terminated string */
 				size_t len;
-				const char *s = luastream_checkstream(L, arg, &len);
+				const char *s = luabuf_checkstream(L, arg, &len);
 				luaL_argcheck(L, strlen(s) == len, arg, "string contains zeros");
-				luastream_addstream(&b, s, len);
-				luastream_addchar(&b, '\0');  /* add zero at the end */
+				luabuf_addstream(&b, s, len);
+				luabuf_addchar(&b, '\0');  /* add zero at the end */
 				totalsize += len + 1;
 				break;
 			}
-			case Kpadding: luastream_addchar(&b, LUA_PACKPADBYTE);  /* go through */
+			case Kpadding: luabuf_addchar(&b, LUA_PACKPADBYTE);  /* go through */
 			case Kpaddalign: case Knop:
 				arg--;  /* undo increment */
 				break;
 		}
 	}
-	if (op == 0) luastream_pushresult(&b);
-	else luastream_pushresbuf(&b);
+	if (op == 0) luabuf_pushresult(&b);
+	else luabuf_pushresbuf(&b);
 	return 1;
 }
 
@@ -1350,14 +1350,14 @@ static int str_packsize (lua_State *L) {
 		int size, ntoalign;
 		KOption opt = getdetails(&h, totalsize, &fmt, &size, &ntoalign);
 		size += ntoalign;  /* total space used by option */
-		luaL_argcheck(L, totalsize <= LUASTREAM_MAXSIZE - size, 1,
+		luaL_argcheck(L, totalsize <= LUABUF_MAXSIZE - size, 1,
 		                 "format result too large");
 		totalsize += size;
 		arg++;
 		switch (opt) {
 			case Kstring: {  /* strings with length count */
 				size_t len;
-				luastream_checkstream(L, arg, &len);
+				luabuf_checkstream(L, arg, &len);
 				luaL_argcheck(L, size >= (int)sizeof(size_t) ||
 				                 len < ((size_t)1 << (size * NB)),
 				                 arg, "string length does not fit in given size");
@@ -1366,7 +1366,7 @@ static int str_packsize (lua_State *L) {
 			}
 			case Kzstr: {  /* zero-terminated string */
 				size_t len;
-				const char *s = luastream_checkstream(L, arg, &len);
+				const char *s = luabuf_checkstream(L, arg, &len);
 				luaL_argcheck(L, strlen(s) == len, arg, "string contains zeros");
 				totalsize += len + 1;
 				break;
@@ -1417,7 +1417,7 @@ static int str_unpack (lua_State *L) {
 	Header h;
 	const char *fmt = luaL_checkstring(L, 1);
 	size_t ld;
-	const char *data = luastream_checkstream(L, 2, &ld);
+	const char *data = luabuf_checkstream(L, 2, &ld);
 	size_t pos = (size_t)luastreamI_posrelat(luaL_optinteger(L, 3, 1), ld) - 1;
 	int n = 0;  /* number of results */
 	luaL_argcheck(L, pos <= ld, 3, "initial position out of string");
@@ -1503,7 +1503,7 @@ static const luaL_Reg strlib[] = {
 };
 
 
-LUASTREAMMOD_API int luaopen_stream (lua_State *L) {
+LUABUFMOD_API int luaopen_buffer_stream (lua_State *L) {
 	luaL_newlib(L, strlib);
 	return 1;
 }

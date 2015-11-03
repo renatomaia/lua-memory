@@ -1,5 +1,5 @@
-LuaBuffer
-=========
+Module `buffer`
+===============
 
 -- buffer support
 [ok]   b = buffer.create (b|s|sz [, i [, j]])
@@ -11,11 +11,11 @@ LuaBuffer
 [  ]   fmt_i, arg_i = b:pack (fmt, ...) -- padding shall not change buffer
 [  ]   ... = buffer:unpack (fmt [, pos])
 
-LuaStream
-=========
+Module `buffer.stream`
+======================
 
 -- inspect streams
-[ok]   "string"|"buffer" = stream.type (b|s)
+[  ]   "string"|"buffer" = stream.type (b|s)
 [ok]   index, lesser = stream.diff (b|s, b|s)
 [ok]   sz = stream.len (b|s)
 [ok]   str = stream.tostring (b|s [, i [, j]]) -- ~ string.sub

@@ -1,4 +1,4 @@
-LuaStream
+LuaBuffer
 =========
 
 Seamless Support for Buffers in Lua

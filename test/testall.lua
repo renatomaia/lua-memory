@@ -1,6 +1,6 @@
 -- $Id$
-local stream = require "stream"
-local buffer = require "stream.buffer"
+local buffer = require "buffer"
+local stream = require "buffer.stream"
 
 print('testing buffers and buffer functions')
 

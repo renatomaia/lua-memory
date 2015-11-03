@@ -25,9 +25,9 @@ MYLIBS=
 
 PLATS= linux solaris macosx
 
-LIBNAME= luastream
+LIBNAME= luabuffer
 
-OBJ=	lstrlib.o lbuflib.o lstrops.o lstraux.o
+OBJ=	lbuflib.o lstrlib.o lstrops.o lstraux.o
 LIB=	lib$(LIBNAME).a
 SO=	lib$(LIBNAME).so
 

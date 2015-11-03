@@ -18,13 +18,13 @@
 
 
 /* translate a relative string position: negative means back from end */
-LUASTREAM_FUNC lua_Integer luastreamI_posrelat (lua_Integer pos, size_t len) {
+LUABUF_FUNC lua_Integer luastreamI_posrelat (lua_Integer pos, size_t len) {
 	if (pos >= 0) return pos;
 	else if (0u - (size_t)pos > len) return 0;
 	else return (lua_Integer)len + pos + 1;
 }
 
-LUASTREAM_FUNC int luastreamI_str2byte (lua_State *L, const char *s, size_t l) {
+LUABUF_FUNC int luastreamI_str2byte (lua_State *L, const char *s, size_t l) {
 	lua_Integer posi = luastreamI_posrelat(luaL_optinteger(L, 2, 1), l);
 	lua_Integer pose = luastreamI_posrelat(luaL_optinteger(L, 3, posi), l);
 	int n, i;
@@ -40,7 +40,7 @@ LUASTREAM_FUNC int luastreamI_str2byte (lua_State *L, const char *s, size_t l) {
 	return n;
 }
 
-LUASTREAM_FUNC void luastreamI_code2char (lua_State *L, int idx, char *p, int n) {
+LUABUF_FUNC void luastreamI_code2char (lua_State *L, int idx, char *p, int n) {
 	int i;
 	for (i=0; i<n; ++i, ++idx) {
 		lua_Integer c = luaL_checkinteger(L, idx);
