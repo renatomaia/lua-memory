@@ -1,5 +1,6 @@
 -- $Id$
 local stream = require "stream"
+local buffer = require "stream.buffer"
 
 print('testing buffers and buffer functions')
 
@@ -36,10 +37,10 @@ local checkmodifiable do
 		assert(stream.len(b) == size)
 		assert(#b == size)
 		for i = 1, size do
-			b:set(i, math.max(0, 256-i))
+			buffer.set(b, i, math.max(0, 256-i))
 		end
 		for i = 1, size do
-			assert(b:get(i) == math.max(0, 256-i))
+			assert(buffer.get(b, i) == math.max(0, 256-i))
 		end
 		local expected = (size > #allchars)
 			and allchars..string.rep("\0", size - #allchars)
@@ -48,13 +49,13 @@ local checkmodifiable do
 	end
 end
 
-do -- testing stream.buffer(string), stream.diff, stream.len, #buffer
+do -- testing buffer.create(string), stream.diff, stream.len, #buffer
 	local function check(data, str, expi, explt)
-		local b = stream.buffer(data)
+		local b = buffer.create(data)
 		local i, lt = stream.diff(b, str)
 		assert(i == expi)
 		assert(lt == explt)
-		local i, lt = stream.diff(b, stream.buffer(str))
+		local i, lt = stream.diff(b, buffer.create(str))
 		assert(i == expi)
 		assert(lt == explt)
 		checkmodifiable(b, #data)
@@ -76,9 +77,9 @@ do -- testing stream.buffer(string), stream.diff, stream.len, #buffer
 	check('\0\0b', '\0\0a\0', 3, false)
 end
 
-do -- testing stream.buffer(size)
+do -- testing buffer.create(size)
 	local function check(size)
-		checkmodifiable(stream.buffer(size), size)
+		checkmodifiable(buffer.create(size), size)
 	end
 	check(0)
 	check(1)
@@ -87,12 +88,12 @@ do -- testing stream.buffer(size)
 	check(8192)
 end
 
-do -- testing stream.buffer(buffer|string [, i [, j]])
+do -- testing buffer.create(buffer|string [, i [, j]])
 	local function check(expected, data, ...)
-		local b = stream.buffer(data, ...)
+		local b = buffer.create(data, ...)
 		assert(stream.diff(b, expected) == nil)
 		checkmodifiable(b, #expected)
-		local b = stream.buffer(stream.buffer(data), ...)
+		local b = buffer.create(buffer.create(data), ...)
 		assert(stream.diff(b, expected) == nil)
 		checkmodifiable(b, #expected)
 	end
@@ -124,19 +125,19 @@ do -- testing buffer:fill(stream [, i [, j]])
 		return full:sub(1, #space)
 	end
 	local function check(expected, i, j)
-		for _, S in ipairs({tostring, stream.buffer}) do
-			local b = stream.buffer(data)
-			b:fill(S"", i, j)
+		for _, S in ipairs({tostring, buffer.create}) do
+			local b = buffer.create(data)
+			buffer.fill(b, S"", i, j)
 			assert(stream.diff(b, data) == nil)
-			b:fill(S"xuxu", i, j, 5)
+			buffer.fill(b, S"xuxu", i, j, 5)
 			assert(stream.diff(b, data) == nil)
-			b:fill(S"abc", i, j)
+			buffer.fill(b, S"abc", i, j)
 			assert(stream.diff(b, expected) == nil)
-			b:fill(S"XYZ", i, j, 3)
+			buffer.fill(b, S"XYZ", i, j, 3)
 			assert(stream.diff(b, expected:gsub("%S", "Z")) == nil)
-			b:fill(S"XYZ", i, j, -1)
+			buffer.fill(b, S"XYZ", i, j, -1)
 			assert(stream.diff(b, expected:gsub("%S", "Z")) == nil)
-			b:fill(S(full), i, j)
+			buffer.fill(b, S(full), i, j)
 			assert(stream.diff(b, expected:gsub("%S+", fillup)) == nil)
 		end
 	end
@@ -153,8 +154,8 @@ do -- testing buffer:fill(stream [, i [, j]])
 	check("      abca",-4)
 	check("    abc   ",-6, -4)
 	local function check(...)
-		local b = stream.buffer(data)
-		checkerror("index out of bounds", b.fill, b, "xuxu", ...)
+		local b = buffer.create(data)
+		checkerror("index out of bounds", buffer.fill, b, "xuxu", ...)
 	end
 	check( mini, maxi)
 	check( mini, mini)
@@ -174,7 +175,7 @@ do -- testing stream.tostring(b|s [, i [, j]]), stream.byte(b|s [, i [, j]])
 		if select("#", ...) >= 2 then
 			assert(string.char(stream.byte(s, ...)) == expected)
 		end
-		local s = stream.buffer(data)
+		local s = buffer.create(data)
 		assert(stream.tostring(s, ...) == expected)
 		if select("#", ...) >= 2 then
 			assert(string.char(stream.byte(s, ...)) == expected)
@@ -210,7 +211,7 @@ do -- testing stream.concat(out, list [, sep [, i [, j]]])
 		local buffers = {}
 		local mixed = {}
 		for index, str in pairs(list) do
-			local b = stream.buffer(str)
+			local b = buffer.create(str)
 			buffer[index] = b
 			mixed[index] = index%2==0 and str or b
 		end
@@ -246,7 +247,7 @@ do -- testing stream.concat(out, list [, sep [, i [, j]]])
 	check("alo"  , makelists{[maxi]="alo"             }, "x", maxi, maxi)
 	check("y-alo", makelists{[maxi]="alo",[maxi-1]="y"}, "-", maxi-1, maxi)
 
-	assert(not pcall(stream.concat, {stream.buffer"a", "b", {}}))
+	assert(not pcall(stream.concat, {buffer.create"a", "b", {}}))
 
 	a = makelists{"a","b","c"}
 	check("", a, ",", 1, 0)
@@ -511,6 +512,6 @@ if not _port then
 
 end
 
-print('OK')
-
 --]======]
+
+print('OK')

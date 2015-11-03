@@ -1,21 +1,21 @@
-Legend:
-[ok] - implementation and tests
-[??] - implementation only
-[  ] - no implementation yet
-
-
+LuaBuffer
+=========
 
 -- buffer support
-[ok]   b = stream.buffer (b|s|sz [, i [, j]])
-[ok]   buffer:set (pos, ...)
-[ok]   buffer:fill (b|s [, i [, j [, o]]])
-[ok]   sz = #buffer                          -- ~ stream.len
-[ok]   str = tostring (buffer)               -- ~ stream.tostring
-[ok]   ... = buffer:get ([i [, j]])          -- ~ stream.byte
-[  ]   fmt_i, arg_i = buffer:pack (fmt, ...) -- padding shall not change buffer
+[ok]   b = buffer.create (b|s|sz [, i [, j]])
+[ok]   b:set (pos, ...)
+[ok]   b:fill (b|s [, i [, j [, o]]])
+[ok]   sz = #b                          -- ~ stream.len
+[ok]   str = tostring (b)               -- ~ stream.tostring
+[ok]   ... = b:get ([i [, j]])          -- ~ stream.byte
+[  ]   fmt_i, arg_i = b:pack (fmt, ...) -- padding shall not change buffer
 [  ]   ... = buffer:unpack (fmt [, pos])
+
+LuaStream
+=========
+
 -- inspect streams
-[ok]   bool = stream.isbuffer (b|s)
+[ok]   "string"|"buffer" = stream.type (b|s)
 [ok]   index, lesser = stream.diff (b|s, b|s)
 [ok]   sz = stream.len (b|s)
 [ok]   str = stream.tostring (b|s [, i [, j]]) -- ~ string.sub
@@ -38,3 +38,11 @@ Legend:
 [??]   b|s = stream.upper (out, b|s) -- out="string"|"buffer"|"inplace"
 [??]   b|s = stream.reverse (out, b|s) -- out="string"|"buffer"|"inplace"
 [  ]   b|s = stream.concat (out, list [, sep [, i [, j]]])
+
+
+Legend
+------
+[ok] - implementation and tests
+[??] - implementation only
+[  ] - no implementation yet
+

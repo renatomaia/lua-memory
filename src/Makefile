@@ -27,7 +27,7 @@ PLATS= linux solaris macosx
 
 LIBNAME= luastream
 
-OBJ=	luastreamlib.o luastreamaux.o
+OBJ=	lstrlib.o lbuflib.o lstrops.o lstraux.o
 LIB=	lib$(LIBNAME).a
 SO=	lib$(LIBNAME).so
 
@@ -83,6 +83,6 @@ solaris:
 macosx:
 	$(MAKE) $(ALL) MYCFLAGS="-fno-common $(MYCFLAGS)" \
 	               MYLDFLAGS="-bundle -undefined dynamic_lookup $(MYLDFLAGS)" \
-	               LD='export MACOSX_DEPLOYMENT_TARGET="10.3"; gcc'
+	               LD='export MACOSX_DEPLOYMENT_TARGET="10.10"; gcc'
 
 # (end of Makefile)

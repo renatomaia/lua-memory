@@ -4,12 +4,13 @@
 **       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
 **
 ** Stream support for the Lua language
-** See Copyright Notice in luastreamaux.h
+** See Copyright Notice in lstraux.h
 */
 
-#define luastreamlib_c
+#define lstrlib_c
 
-#include "luastreamaux.h"
+#include "lstraux.h"
+#include "lstrops.h"
 
 #include <string.h>
 #include <ctype.h>
@@ -35,58 +36,10 @@
 #define uchar(c)	((unsigned char)(c))
 
 
-/*
-** Some sizes are better limited to fit in 'int', but must also fit in
-** 'size_t'. (We assume that 'lua_Integer' cannot be smaller than 'int'.)
-*/
-#define MAXSIZE  \
-	(sizeof(size_t) < sizeof(int) ? (~(size_t)0) : (size_t)(INT_MAX))
-
-
-
-
 static int str_len (lua_State *L) {
 	size_t l;
 	luastream_checkstream(L, 1, &l);
 	lua_pushinteger(L, (lua_Integer)l);
-	return 1;
-}
-
-
-static int buf_len (lua_State *L) {
-	size_t l;
-	luastream_checkbuffer(L, 1, &l);
-	lua_pushinteger(L, (lua_Integer)l);
-	return 1;
-}
-
-
-/* translate a relative string position: negative means back from end */
-static lua_Integer posrelat (lua_Integer pos, size_t len) {
-	if (pos >= 0) return pos;
-	else if (0u - (size_t)pos > len) return 0;
-	else return (lua_Integer)len + pos + 1;
-}
-
-
-static int str_newbuf (lua_State *L) {
-	char *p;
-	size_t l;
-	const char *s = NULL;
-	if (lua_type(L, 1) == LUA_TNUMBER) {
-		l = luaL_checkinteger(L, 1);
-	} else {
-		lua_Integer i, j;
-		s = luastream_checkstream(L, 1, &l);
-		i = posrelat(luaL_optinteger(L, 2, 1), l);
-		j = posrelat(luaL_optinteger(L, 3, -1), l);
-		if (i < 1) i = 1;
-		if (j > (lua_Integer)l) j = l;
-		s += i-1;
-		l = 1+j-i;
-	}
-	p = luastream_newbuffer(L, l);
-	if (s) memcpy(p, s, l * sizeof(char));
 	return 1;
 }
 
@@ -121,23 +74,14 @@ static int str_diff (lua_State *L) {
 static int str_tostring (lua_State *L) {
 	size_t l;
 	const char *s = luastream_checkstream(L, 1, &l);
-	lua_Integer start = posrelat(luaL_optinteger(L, 2, 1), l);
-	lua_Integer end = posrelat(luaL_optinteger(L, 3, -1), l);
+	lua_Integer start = luastreamI_posrelat(luaL_optinteger(L, 2, 1), l);
+	lua_Integer end = luastreamI_posrelat(luaL_optinteger(L, 3, -1), l);
 	if (start < 1) start = 1;
 	if (end > (lua_Integer)l) end = l;
 	if (start == 1 && end == l && lua_type(L, 1) == LUA_TSTRING)
 		lua_settop(L, 1);
 	else if (start <= end)
 		lua_pushlstring(L, s + start - 1, (size_t)(end - start + 1));
-	else lua_pushliteral(L, "");
-	return 1;
-}
-
-
-static int buf_tostring (lua_State *L) {
-	size_t l;
-	const char *s = luastream_checkbuffer(L, 1, &l);
-	if (l>0) lua_pushlstring(L, s, l);
 	else lua_pushliteral(L, "");
 	return 1;
 }
@@ -258,7 +202,7 @@ static int str_rep (lua_State *L) {
 	if (n <= 0) {
 		if (op == 0) lua_pushliteral(L, "");
 		else luastream_newbuffer(L, 0);
-	} else if (l + lsep < l || l + lsep > MAXSIZE / n)  /* may overflow? */
+	} else if (l + lsep < l || l + lsep > LUASTREAM_MAXSIZE / n)  /* may overflow? */
 		return luaL_error(L, "resulting string too large");
 	else {
 		size_t totallen = (size_t)n * l + (size_t)(n - 1) * lsep;
@@ -276,44 +220,10 @@ static int str_rep (lua_State *L) {
 }
 
 
-static int str2byte (lua_State *L, const char *s, size_t l) {
-	lua_Integer posi = posrelat(luaL_optinteger(L, 2, 1), l);
-	lua_Integer pose = posrelat(luaL_optinteger(L, 3, posi), l);
-	int n, i;
-	if (posi < 1) posi = 1;
-	if (pose > (lua_Integer)l) pose = l;
-	if (posi > pose) return 0;  /* empty interval; return no values */
-	n = (int)(pose -  posi + 1);
-	if (posi + n <= pose)  /* arithmetic overflow? */
-		return luaL_error(L, "string slice too long");
-	luaL_checkstack(L, n, "string slice too long");
-	for (i=0; i<n; i++)
-		lua_pushinteger(L, uchar(s[posi+i-1]));
-	return n;
-}
-
-
 static int str_byte (lua_State *L) {
 	size_t l;
 	const char *s = luastream_checkstream(L, 1, &l);
-	return str2byte(L, s, l);
-}
-
-
-static int buf_get (lua_State *L) {
-	size_t l;
-	const char *s = luastream_checkbuffer(L, 1, &l);
-	return str2byte(L, s, l);
-}
-
-
-static void code2char (lua_State *L, int idx, char *p, int n) {
-	int i;
-	for (i=0; i<n; ++i, ++idx) {
-		lua_Integer c = luaL_checkinteger(L, idx);
-		luaL_argcheck(L, uchar(c) == c, idx, "value out of range");
-		p[i] = uchar(c);
-	}
+	return luastreamI_str2byte(L, s, l);
 }
 
 
@@ -323,50 +233,13 @@ static int str_char (lua_State *L) {
 	if (op == 0) {
 		luastream_Buffer b;
 		char *p = luastream_buffinitsize(L, &b, n);
-		code2char(L, 2, p, n);
+		luastreamI_code2char(L, 2, p, n);
 		luastream_pushresultsize(&b, n);
 	} else {
 		char *p = luastream_newbuffer(L, n);
-		code2char(L, 2, p, n);
+		luastreamI_code2char(L, 2, p, n);
 	}
 	return 1;
-}
-
-
-static int buf_set (lua_State *L) {
-	size_t l;
-	int n = lua_gettop(L)-2;  /* number of bytes */
-	char *p = luastream_checkbuffer(L, 1, &l);
-	lua_Integer i = posrelat(luaL_checkinteger(L, 2), l);
-	luaL_argcheck(L, i>0 && i<=(lua_Integer)l, 2, "index out of bounds");
-	l = 1+l-i;
-	code2char(L, 3, p+i-1, n<l ? n : l);
-	return 0;
-}
-
-
-static int buf_fill (lua_State *L) {
-	size_t l, sl;
-	char *p = luastream_checkbuffer(L, 1, &l);
-	const char *s = luastream_checkstream(L, 2, &sl);
-	lua_Integer i = posrelat(luaL_optinteger(L, 3, 1), l);
-	lua_Integer j = posrelat(luaL_optinteger(L, 4, -1), l);
-	lua_Integer os = posrelat(luaL_optinteger(L, 5, 1), sl);
-	luaL_argcheck(L, i>0 && i<=(lua_Integer)l, 3, "index out of bounds");
-	luaL_argcheck(L, j>0 && j<=(lua_Integer)l, 4, "index out of bounds");
-	if (os < 1) os = 1;
-	if (os <= (lua_Integer)sl) {
-		--os;
-		s += os;
-		sl -= os;
-		while (i <= j) {
-			lua_Integer f = 1+j-i;
-			lua_Integer n = f<sl ? f : sl;
-			memcpy(p+i-1, s, n * sizeof(char));
-			i += n;
-		}
-	}
-	return 0;
 }
 
 
@@ -785,7 +658,7 @@ static int str_find_aux (lua_State *L, int find) {
 	size_t ls, lp;
 	const char *s = luastream_checkstream(L, 1, &ls);
 	const char *p = luastream_checkstream(L, 2, &lp);
-	lua_Integer init = posrelat(luaL_optinteger(L, 3, 1), ls);
+	lua_Integer init = luastreamI_posrelat(luaL_optinteger(L, 3, 1), ls);
 	if (init < 1) init = 1;
 	else if (init > (lua_Integer)ls + 1) {  /* start after string's end? */
 		lua_pushnil(L);  /* cannot find anything */
@@ -1240,7 +1113,7 @@ static int getnum (const char **fmt, int df) {
 		int a = 0;
 		do {
 			a = a*10 + (*((*fmt)++) - '0');
-		} while (digit(**fmt) && a <= ((int)MAXSIZE - 9)/10);
+		} while (digit(**fmt) && a <= ((int)LUASTREAM_MAXSIZE - 9)/10);
 		return a;
 	}
 }
@@ -1477,7 +1350,7 @@ static int str_packsize (lua_State *L) {
 		int size, ntoalign;
 		KOption opt = getdetails(&h, totalsize, &fmt, &size, &ntoalign);
 		size += ntoalign;  /* total space used by option */
-		luaL_argcheck(L, totalsize <= MAXSIZE - size, 1,
+		luaL_argcheck(L, totalsize <= LUASTREAM_MAXSIZE - size, 1,
 		                 "format result too large");
 		totalsize += size;
 		arg++;
@@ -1545,7 +1418,7 @@ static int str_unpack (lua_State *L) {
 	const char *fmt = luaL_checkstring(L, 1);
 	size_t ld;
 	const char *data = luastream_checkstream(L, 2, &ld);
-	size_t pos = (size_t)posrelat(luaL_optinteger(L, 3, 1), ld) - 1;
+	size_t pos = (size_t)luastreamI_posrelat(luaL_optinteger(L, 3, 1), ld) - 1;
 	int n = 0;  /* number of results */
 	luaL_argcheck(L, pos <= ld, 3, "initial position out of string");
 	initheader(L, &h);
@@ -1607,7 +1480,6 @@ static int str_unpack (lua_State *L) {
 
 
 static const luaL_Reg strlib[] = {
-	{"buffer", str_newbuf},
 	{"byte", str_byte},
 	{"char", str_char},
 	{"diff", str_diff},
@@ -1631,35 +1503,7 @@ static const luaL_Reg strlib[] = {
 };
 
 
-static const luaL_Reg buflib[] = {
-	{"get", buf_get},
-	{"set", buf_set},
-	{"fill", buf_fill},
-	//{"pack", buf_pack},
-	//{"unpack", buf_unpack},
-	{"__tostring", buf_tostring},
-	{"__len", buf_len},
-	{NULL, NULL}
-};
-
-
-static void createmetatable (lua_State *L) {
-	if (!luaL_getmetatable(L, LUASTREAM_BUFFER)) {
-		lua_pop(L, 1);  /* pop 'nil' */
-		luaL_newmetatable(L, LUASTREAM_BUFFER);
-	}
-	lua_pushvalue(L, -1);  /* push metatable */
-	lua_setfield(L, -2, "__index");  /* metatable.__index = metatable */
-	luaL_setfuncs(L, buflib, 0);  /* add buffer methods to new metatable */
-	lua_pop(L, 1);  /* pop new metatable */
-}
-
-
-/*
-** Open stream library
-*/
-LUAMOD_API int luaopen_stream (lua_State *L) {
+LUASTREAMMOD_API int luaopen_stream (lua_State *L) {
 	luaL_newlib(L, strlib);
-	createmetatable(L);
 	return 1;
 }

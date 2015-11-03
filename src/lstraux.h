@@ -6,17 +6,21 @@
 */
 
 
-#ifndef luastreamaux_h
-#define luastreamaux_h
+#ifndef lstraux_h
+#define lstraux_h
 
 
-#include "lua.h"
-#include "lauxlib.h"
+#include <lua.h>
+#include <lauxlib.h>
 
 
 
 #ifndef LUASTREAMLIB_API
 #define LUASTREAMLIB_API LUALIB_API
+#endif
+
+#ifndef LUASTREAMMOD_API
+#define LUASTREAMMOD_API LUAMOD_API
 #endif
 
 

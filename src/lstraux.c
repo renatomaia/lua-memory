@@ -1,13 +1,13 @@
 /*
 ** $Id$
 ** Auxiliary functions for handling generic streams in Lua.
-** See Copyright Notice in luastreamaux.h
+** See Copyright Notice in lstraux.h
 */
 
-#define luastreamaux_c
+#define lstraux_c
 #define LUASTREAMLIB_API
 
-#include "luastreamaux.h"
+#include "lstraux.h"
 
 #include <string.h>
 
