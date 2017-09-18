@@ -7,7 +7,7 @@ print('testing buffers and buffer functions')
 local maxi, mini = math.maxinteger, math.mininteger
 
 
-local function checkerror (msg, f, ...)
+local function checkerror(msg, f, ...)
   local s, err = pcall(f, ...)
   assert(not s and string.find(err, msg))
 end
@@ -47,6 +47,14 @@ local checkmodifiable do
 			or allchars:sub(1, size)
 		assert(stream.diff(b, expected) == nil)
 	end
+end
+
+-- testing buffer:set(i, d)
+do
+	local b = buffer.create(10)
+	checkerror("value out of range", buffer.set, b, 1, 256)
+	checkerror("value out of range", buffer.set, b, 1, 511)
+	checkerror("value out of range", buffer.set, b, 1, -1)
 end
 
 do -- testing buffer.create(string), stream.diff, stream.len, #buffer
@@ -133,6 +141,8 @@ do -- testing buffer:fill(stream [, i [, j]])
 			assert(stream.diff(b, data) == nil)
 			buffer.fill(b, S"abc", i, j)
 			assert(stream.diff(b, expected) == nil)
+			buffer.fill(b, 0x55, i, j)
+			assert(stream.diff(b, expected:gsub("%S", "\x55")) == nil)
 			buffer.fill(b, S"XYZ", i, j, 3)
 			assert(stream.diff(b, expected:gsub("%S", "Z")) == nil)
 			buffer.fill(b, S"XYZ", i, j, -1)
@@ -164,6 +174,36 @@ do -- testing buffer:fill(stream [, i [, j]])
 	check(-10,-20)
 	check( mini, -4)
 	check( 3, maxi)
+	do
+		local b = buffer.create(full)
+		buffer.fill(b, b)
+		assert(stream.diff(b, full) == nil)
+	end
+	do
+		local b = buffer.create(full)
+		buffer.fill(b, 0)
+		assert(stream.diff(b, string.rep("\0", #full)) == nil)
+	end
+	do
+		local b = buffer.create(full)
+		buffer.fill(b, b, 11, -1)
+		assert(stream.diff(b, "1234567890123456") == nil)
+	end
+	do
+		local b = buffer.create(full)
+		buffer.fill(b, b, 1, 6, 11)
+		assert(stream.diff(b, "ABCDEF7890ABCDEF") == nil)
+	end
+	do
+		local b = buffer.create(full)
+		buffer.fill(b, b, 1, 10, 7)
+		assert(stream.diff(b, "7890ABCDEFABCDEF") == nil)
+	end
+	do
+		local b = buffer.create(full)
+		buffer.fill(b, b, 7, -1)
+		assert(stream.diff(b, "1234561234567890") == nil)
+	end
 end
 
 do -- testing stream.tostring(b|s [, i [, j]]), stream.byte(b|s [, i [, j]])

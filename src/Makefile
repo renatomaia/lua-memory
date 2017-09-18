@@ -44,13 +44,13 @@ so:	$(SO)
 # Static Libraies
 
 $(LIB): $(OBJ)
-	$(AR) $@ $?
+	$(AR) $@ $^
 	$(RANLIB) $@
 
 # Dynamic Libraies
 
 $(SO): $(OBJ)
-	$(LD) $(LDFLAGS) -o $@ $?
+	$(LD) $(LDFLAGS) -o $@ $^
 
 clean:
 	$(RM) $(OBJ) $(LIB) $(SO)
