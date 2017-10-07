@@ -123,3 +123,4 @@ Returns the index of the first unwritten byte in `b`.
 ### `buffer.unpack (b, i, fmt)`
 
 Returns the values encoded in position `i` of buffer or string `b`, according to the format `fmt`, as in function [buffer.pack](#bufferpack-b-i-fmt-v-).
+After the read values, this function also returns the index of the first unread byte in `b`. 

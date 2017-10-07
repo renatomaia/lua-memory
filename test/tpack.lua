@@ -51,6 +51,7 @@ local function assertunpack(sz, vals, ...)
 		assert(v == select(i, ...))
 	end
 	assert(sz+1 == select(#vals+1, ...))
+	return ...
 end
 
 -- minimum behavior for integer formats
@@ -90,26 +91,38 @@ for i = 1, NB do
   assertunpack(i, {0xAA}, unpack(b, 1, ">I" .. i))
 end
 
-do return end
-
 do
+  local b = buffer.create(sizeLI+1)
   local lnum = 0x13121110090807060504030201
-  local s = pack("<j", lnum)
-  assert(unpack("<j", s) == lnum)
-  assert(unpack("<i" .. sizeLI + 1, s .. "\0") == lnum)
-  assert(unpack("<i" .. sizeLI + 1, s .. "\0") == lnum)
+  assertpack(sizeLI, 1, pack(b, 1, "<j", lnum))
+  assertunpack(sizeLI, {lnum}, unpack(b, 1, "<j"))
+  buffer.set(b, sizeLI+1, 0)
+  assertunpack(sizeLI+1, {lnum}, unpack(b, 1, "<i"..sizeLI+1))
+  assertunpack(sizeLI+1, {lnum}, unpack(b, 1, "<i"..sizeLI+1))
 
   for i = sizeLI + 1, NB do
-    local s = pack("<j", -lnum)
-    assert(unpack("<j", s) == -lnum)
+    local b = buffer.create(i)
+    assertpack(sizeLI, 1, pack(b, 1, "<j", -lnum))
+    assertunpack(sizeLI, {-lnum}, unpack(b, 1, "<j"))
     -- strings with (correct) extra bytes
-    assert(unpack("<i" .. i, s .. ("\xFF"):rep(i - sizeLI)) == -lnum)
-    assert(unpack(">i" .. i, ("\xFF"):rep(i - sizeLI) .. s:reverse()) == -lnum)
-    assert(unpack("<I" .. i, s .. ("\0"):rep(i - sizeLI)) == -lnum)
+    buffer.fill(b, 0, -(i-sizeLI))
+    assertunpack(i, {-lnum}, unpack(b, 1, "<I" .. i))
+    buffer.fill(b, 0xff, -(i-sizeLI))
+    assertunpack(i, {-lnum}, unpack(b, 1, "<i" .. i))
+    for i = 1, buffer.len(b)/2 do
+      local t = buffer.get(b, -i)
+      buffer.set(b, -i, buffer.get(b, i))
+      buffer.set(b, i, t)
+    end
+    assertunpack(i, {-lnum}, unpack(b, 1, ">i" .. i))
 
     -- overflows
-    checkerror("does not fit", unpack, "<I" .. i, ("\x00"):rep(i - 1) .. "\1")
-    checkerror("does not fit", unpack, ">i" .. i, "\1" .. ("\x00"):rep(i - 1))
+    buffer.fill(b, 0, 1, i-1)
+    buffer.set(b, i, 1)
+    checkerror("does not fit", unpack, b, 1, "<I" .. i)
+    buffer.set(b, 1, 1)
+    buffer.fill(b, 0, 2, i)
+    checkerror("does not fit", unpack, b, 1, ">i" .. i)
   end
 end
 
@@ -118,82 +131,103 @@ for i = 1, sizeLI do
   local lnum = 0x13121110090807060504030201
   local n = lnum & (~(-1 << (i * 8)))
   local s = string.sub(lstr, 1, i)
-  assert(pack("<i" .. i, n) == s)
-  assert(pack(">i" .. i, n) == s:reverse())
-  assert(unpack(">i" .. i, s:reverse()) == n)
+  local b = buffer.create(i)
+  assertpack(i, 1, pack(b, 1, "<i" .. i, n))
+  assert(tostring(b) == s)
+  assertpack(i, 1, pack(b, 1, ">i" .. i, n))
+  assert(tostring(b) == s:reverse())
+  assertunpack(i, {n}, unpack(b, 1, ">i" .. i))
 end
 
 -- sign extension
 do
   local u = 0xf0
   for i = 1, sizeLI - 1 do
-    assert(unpack("<i"..i, "\xf0"..("\xff"):rep(i - 1)) == -16)
-    assert(unpack(">I"..i, "\xf0"..("\xff"):rep(i - 1)) == u)
+    local b = buffer.create(i)
+    buffer.set(b, 1, 0xf0)
+    if i>=2 then
+    	buffer.fill(b, 0xff, 2, i)
+    end
+    assertunpack(i, {-16}, unpack(b, 1, "<i"..i))
+    assertunpack(i, {u}, unpack(b, 1, ">I"..i))
     u = u * 256 + 0xff
   end
 end
 
 -- mixed endianness
 do
-  assert(pack(">i2 <i2", 10, 20) == "\0\10\20\0")
-  local a, b = unpack("<i2 >i2", "\10\0\0\20")
-  assert(a == 10 and b == 20)
-  assert(pack("=i4", 2001) == pack("i4", 2001))
+  local b = buffer.create(4)
+  assertpack(4, 2, pack(b, 1, ">i2 <i2", 10, 20))
+  assert(tostring(b) == "\0\10\20\0")
+  buffer.fill(b, "\10\0\0\20")
+  assertunpack(4, {10, 20}, unpack(b, 1, "<i2 >i2"))
+  assertpack(4, 1, pack(b, 1, "=i4", 2001))
+  local s = tostring(b)
+  assertpack(4, 1, pack(b, 1, "i4", 2001))
+  assert(tostring(b) == s)
 end
 
 print("testing invalid formats")
 
-checkerror("out of limits", pack, "i0", 0)
-checkerror("out of limits", pack, "i" .. NB + 1, 0)
-checkerror("out of limits", pack, "!" .. NB + 1, 0)
-checkerror("%(17%) out of limits %[1,16%]", pack, "Xi" .. NB + 1)
-checkerror("invalid format option 'r'", pack, "i3r", 0)
-checkerror("16%-byte integer", unpack, "i16", string.rep('\3', 16))
-checkerror("not power of 2", pack, "!4i3", 0);
-checkerror("missing size", pack, "c", "")
-checkerror("variable%-length format", packsize, "s")
-checkerror("variable%-length format", packsize, "z")
-
--- overflow in option size  (error will be in digit after limit)
-checkerror("invalid format", packsize, "c1" .. string.rep("0", 40))
-
-if packsize("i") == 4 then
-  -- result would be 2^31  (2^3 repetitions of 2^28 strings)
-  local s = string.rep("c268435456", 2^3)
-  checkerror("too large", packsize, s)
-  -- one less is OK
-  s = string.rep("c268435456", 2^3 - 1) .. "c268435455"
-  assert(packsize(s) == 0x7fffffff)
+do
+  local b = buffer.create(math.max(16, NB+1))
+  checkerror("out of limits", pack, b, 1, "i0", 0)
+  checkerror("out of limits", pack, b, 1, "i" .. NB + 1, 0)
+  checkerror("out of limits", pack, b, 1, "!" .. NB + 1, 0)
+  checkerror("%(17%) out of limits %[1,16%]", pack, b, 1, "Xi" .. NB + 1)
+  checkerror("invalid format option 'r'", pack, b, 1, "i3r", 0)
+  buffer.fill(b, 16, 1, 16)
+  checkerror("16%-byte integer", unpack, b, 1, "i16")
+  checkerror("not power of 2", pack, b, 1, "!4i3", 0);
+  checkerror("missing size", pack, b, 1, "c", "")
 end
 
 -- overflow in packing
 for i = 1, sizeLI - 1 do
+  local b = buffer.create(i)
   local umax = (1 << (i * 8)) - 1
   local max = umax >> 1
   local min = ~max
-  checkerror("overflow", pack, "<I" .. i, -1)
-  checkerror("overflow", pack, "<I" .. i, min)
-  checkerror("overflow", pack, ">I" .. i, umax + 1)
+  checkerror("overflow", pack, b, 1, "<I" .. i, -1)
+  checkerror("overflow", pack, b, 1, "<I" .. i, min)
+  checkerror("overflow", pack, b, 1, ">I" .. i, umax + 1)
 
-  checkerror("overflow", pack, ">i" .. i, umax)
-  checkerror("overflow", pack, ">i" .. i, max + 1)
-  checkerror("overflow", pack, "<i" .. i, min - 1)
+  checkerror("overflow", pack, b, 1, ">i" .. i, umax)
+  checkerror("overflow", pack, b, 1, ">i" .. i, max + 1)
+  checkerror("overflow", pack, b, 1, "<i" .. i, min - 1)
 
-  assert(unpack(">i" .. i, pack(">i" .. i, max)) == max)
-  assert(unpack("<i" .. i, pack("<i" .. i, min)) == min)
-  assert(unpack(">I" .. i, pack(">I" .. i, umax)) == umax)
+  assertpack(i, 1, pack(b, 1, ">i" .. i, max))
+  assertunpack(i, {max}, unpack(b, 1, ">i" .. i))
+  assertpack(i, 1, pack(b, 1, "<i" .. i, min))
+  assertunpack(i, {min}, unpack(b, 1, "<i" .. i))
+  assertpack(i, 1, pack(b, 1, ">I" .. i, umax))
+  assertunpack(i, {umax}, unpack(b, 1, ">I" .. i))
 end
 
 -- Lua integer size
-assert(unpack(">j", pack(">j", math.maxinteger)) == math.maxinteger)
-assert(unpack("<j", pack("<j", math.mininteger)) == math.mininteger)
-assert(unpack("<J", pack("<j", -1)) == -1)   -- maximum unsigned integer
-
-if little then
-  assert(pack("f", 24) == pack("<f", 24))
-else
-  assert(pack("f", 24) == pack(">f", 24))
+do
+  local b = buffer.create(sizeLI)
+  assertpack(sizeLI, 1, pack(b, 1, ">j", math.maxinteger))
+  assertunpack(sizeLI, {math.maxinteger}, unpack(b, 1, ">j"))
+  assertpack(sizeLI, 1, pack(b, 1, "<j", math.mininteger))
+  assertunpack(sizeLI, {math.mininteger}, unpack(b, 1, "<j"))
+  assertpack(sizeLI, 1, pack(b, 1, "<j", -1))
+  assertunpack(sizeLI, {-1}, unpack(b, 1, "<J"))  -- maximum unsigned integer
 end
+
+do
+  local b1 = buffer.create(sizefloat)
+  local b2 = buffer.create(sizefloat)
+  pack(b1, 1, "f", 24)
+  if little then
+    pack(b2, 1, "<f", 24)
+  else
+    pack(b2, 1, ">f", 24)
+  end
+  assert(tostring(b1) == tostring(b2))
+end
+
+do return end
 
 print "testing pack/unpack of floating-point numbers" 
 

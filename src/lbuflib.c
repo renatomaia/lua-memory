@@ -309,7 +309,7 @@ static char *getbytes (char **b, size_t *i, size_t lb, size_t sz) {
 	size_t newtotal = *i+sz;
 	if (newtotal<=lb) {
 		char *res = *b;
-		*b += newtotal;
+		*b += sz;
 		*i = newtotal;
 		return res;
 	}
@@ -393,7 +393,7 @@ static int buf_pack (lua_State *L) {
 	size_t i = (size_t)luastreamI_posrelat(luaL_checkinteger(L, 2), lb) - 1;
 	const char *fmt = luaL_checkstring(L, 3);  /* format string */
 	int arg = 3;  /* current argument to pack */
-	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)lb, 2, "index out of bounds");
+	luaL_argcheck(L, 0 <= i && i <= (lua_Integer)lb-1, 2, "index out of bounds");
 	initheader(L, &h);
 	while (*fmt != '\0') {
 		int size, ntoalign;
