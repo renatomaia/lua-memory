@@ -60,7 +60,7 @@ Thus, the last byte is at position -1, and so on.
 In this manual we will refer to byte in position `i` as `b[i]`.
 
 This library provides all its functions inside the table `buffer`.
-It also sets a metatable for the buffers where the __index field points to the `buffer` table.
+It also sets a metatable for the buffers where the `__index` field points to the `buffer` table.
 Therefore, you can use the library functions in object-oriented style.
 For instance, `buffer.get(b,i)` can be written as `b:get(i)`, where `b` is a buffer.
 
@@ -79,10 +79,6 @@ Returns the new buffer.
 ### `buffer.len (b)`
 
 Returns the size of buffer `b`.
-
-### `buffer.tostring (b)`
-
-Returns a string with the contents of buffer `b`.
 
 ### `buffer.get (b [, i [, j]])`
 
@@ -124,3 +120,7 @@ Returns the index of the first unwritten byte in `b`.
 
 Returns the values encoded in position `i` of buffer or string `b`, according to the format `fmt`, as in function [buffer.pack](#bufferpack-b-i-fmt-v-).
 After the read values, this function also returns the index of the first unread byte in `b`. 
+
+### `tostring (b)`
+
+Returns a string with the contents of buffer `b`.

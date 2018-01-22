@@ -1,19 +1,12 @@
-/*
-** $Id$
-** Stream support for the Lua language
-** See Copyright Notice in lstraux.h
-*/
+#define lmemmod_c
 
-#define lbuflib_c
-
-#include "lstraux.h"
-#include "lstrops.h"
+#include "lmemlib.h"
 
 #include <string.h>
 
 
 
-static int buf_create (lua_State *L) {
+static int mem_create (lua_State *L) {
 	char *p;
 	size_t lb;
 	const char *s = NULL;
@@ -24,9 +17,9 @@ static int buf_create (lua_State *L) {
 		lb = (size_t)sz;
 	} else {
 		lua_Integer posi, pose;
-		s = luabuf_checkstream(L, 1, &lb);
-		posi = luastreamI_posrelat(luaL_optinteger(L, 2, 1), lb);
-		pose = luastreamI_posrelat(luaL_optinteger(L, 3, -1), lb);
+		s = luamem_checkstring(L, 1, &lb);
+		posi = luamem_posrelat(luaL_optinteger(L, 2, 1), lb);
+		pose = luamem_posrelat(luaL_optinteger(L, 3, -1), lb);
 		if (posi < 1) posi = 1;
 		if (pose > (lua_Integer)lb) pose = lb;
 		if (posi > pose) {
@@ -39,48 +32,48 @@ static int buf_create (lua_State *L) {
 			s += posi-1;
 		}
 	}
-	p = luabuf_newbuffer(L, lb);
+	p = luamem_newalloc(L, lb);
 	if (s) memcpy(p, s, lb * sizeof(char));
 	return 1;
 }
 
-static int buf_len (lua_State *L) {
+static int mem_len (lua_State *L) {
 	size_t lb;
-	luabuf_checkbuffer(L, 1, &lb);
+	luamem_checkmemory(L, 1, &lb);
 	lua_pushinteger(L, (lua_Integer)lb);
 	return 1;
 }
 
-static int buf_tostring (lua_State *L) {
+static int mem_tostring (lua_State *L) {
 	size_t lb;
-	const char *s = luabuf_checkbuffer(L, 1, &lb);
+	const char *s = luamem_checkmemory(L, 1, &lb);
 	if (lb>0) lua_pushlstring(L, s, lb);
 	else lua_pushliteral(L, "");
 	return 1;
 }
 
-static int buf_get (lua_State *L) {
+static int mem_get (lua_State *L) {
 	size_t lb;
-	const char *s = luabuf_checkbuffer(L, 1, &lb);
-	return luastreamI_str2byte(L, s, lb);
+	const char *s = luamem_checkmemory(L, 1, &lb);
+	return luamem_str2byte(L, s, lb);
 }
 
-static int buf_set (lua_State *L) {
+static int mem_set (lua_State *L) {
 	size_t lb;
 	int n = lua_gettop(L)-2;  /* number of bytes */
-	char *p = luabuf_checkbuffer(L, 1, &lb);
-	lua_Integer i = luastreamI_posrelat(luaL_checkinteger(L, 2), lb);
+	char *p = luamem_checkmemory(L, 1, &lb);
+	lua_Integer i = luamem_posrelat(luaL_checkinteger(L, 2), lb);
 	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)lb, 2, "index out of bounds");
 	lb = 1+lb-i;
-	luastreamI_code2char(L, 3, p+i-1, n<lb ? n : lb);
+	luamem_code2char(L, 3, p+i-1, n<lb ? n : lb);
 	return 0;
 }
 
-static int buf_fill (lua_State *L) {
+static int mem_fill (lua_State *L) {
 	size_t lb, sl;
-	char *p = luabuf_checkbuffer(L, 1, &lb);
-	lua_Integer i = luastreamI_posrelat(luaL_optinteger(L, 3, 1), lb);
-	lua_Integer j = luastreamI_posrelat(luaL_optinteger(L, 4, -1), lb);
+	char *p = luamem_checkmemory(L, 1, &lb);
+	lua_Integer i = luamem_posrelat(luaL_optinteger(L, 3, 1), lb);
+	lua_Integer j = luamem_posrelat(luaL_optinteger(L, 4, -1), lb);
 	char c;
 	const char *s = NULL;
 	lua_Integer os;
@@ -88,10 +81,10 @@ static int buf_fill (lua_State *L) {
 		s = &c;
 		sl = 1;
 		os = 1;
-		luastreamI_code2char(L, 2, &c, 1);
+		luamem_code2char(L, 2, &c, 1);
 	} else {
-		s = luabuf_checkstream(L, 2, &sl);
-		os = luastreamI_posrelat(luaL_optinteger(L, 5, 1), sl);
+		s = luamem_checkstring(L, 2, &sl);
+		os = luamem_posrelat(luaL_optinteger(L, 5, 1), sl);
 	}
 	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)lb, 3, "index out of bounds");
 	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)lb, 4, "index out of bounds");
@@ -114,6 +107,32 @@ static int buf_fill (lua_State *L) {
 }
 
 
+
+/*
+* NOTE: most of the code below is copied from the source of Lua 5.3.1 by
+*       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
+*
+* Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be
+* included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 
 /*
 ** {======================================================
@@ -386,11 +405,11 @@ static void copywithendian (volatile char *dest, volatile const char *src,
 	}
 }
 
-static int buf_pack (lua_State *L) {
+static int mem_pack (lua_State *L) {
 	Header h;
 	size_t lb;
-	char *buff = luabuf_checkbuffer(L, 1, &lb);
-	size_t i = (size_t)luastreamI_posrelat(luaL_checkinteger(L, 2), lb) - 1;
+	char *buff = luamem_checkmemory(L, 1, &lb);
+	size_t i = (size_t)luamem_posrelat(luaL_checkinteger(L, 2), lb) - 1;
 	const char *fmt = luaL_checkstring(L, 3);  /* format string */
 	int arg = 3;  /* current argument to pack */
 	luaL_argcheck(L, 0 <= i && i <= (lua_Integer)lb-1, 2, "index out of bounds");
@@ -436,7 +455,7 @@ static int buf_pack (lua_State *L) {
 			}
 			case Kchar: {  /* fixed-size string */
 				size_t len;
-				const char *s = luabuf_checkstream(L, arg, &len);
+				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, len == (size_t)size, arg, "wrong length");
 				if (!packstream(&buff, &i, lb, s, size))
 					return packfailed(L, i, arg);
@@ -444,7 +463,7 @@ static int buf_pack (lua_State *L) {
 			}
 			case Kstring: {  /* strings with length count */
 				size_t len;
-				const char *s = luabuf_checkstream(L, arg, &len);
+				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, size >= (int)sizeof(size_t) ||
 				                 len < ((size_t)1 << (size * NB)),
 				                 arg, "string length does not fit in given size");
@@ -455,7 +474,7 @@ static int buf_pack (lua_State *L) {
 			}
 			case Kzstr: {  /* zero-terminated string */
 				size_t len;
-				const char *s = luabuf_checkstream(L, arg, &len);
+				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, strlen(s) == len, arg, "string contains zeros");
 				if (!packstream(&buff, &i, lb, s, len) || !packchar(&buff, &i, lb, '\0'))
 					return packfailed(L, i, arg);
@@ -512,11 +531,11 @@ static lua_Integer unpackint (lua_State *L, const char *str,
 }
 
 
-static int buf_unpack (lua_State *L) {
+static int mem_unpack (lua_State *L) {
 	Header h;
 	size_t ld;
-	const char *data = luabuf_checkbuffer(L, 1, &ld);
-	size_t pos = (size_t)luastreamI_posrelat(luaL_checkinteger(L, 2), ld) - 1;
+	const char *data = luamem_checkmemory(L, 1, &ld);
+	size_t pos = (size_t)luamem_posrelat(luaL_checkinteger(L, 2), ld) - 1;
 	const char *fmt = luaL_checkstring(L, 3);
 	int n = 0;  /* number of results */
 	luaL_argcheck(L, pos <= ld, 2, "initial position out of bounds");
@@ -579,36 +598,37 @@ static int buf_unpack (lua_State *L) {
 
 
 
-static const luaL_Reg buflib[] = {
-	{"create", buf_create},
-	{"fill", buf_fill},
-	{"get", buf_get},
-	{"len", buf_len},
-	{"set", buf_set},
-	{"pack", buf_pack},
-	{"unpack", buf_unpack},
+static const luaL_Reg lib[] = {
+	{"create", mem_create},
+	{"fill", mem_fill},
+	{"get", mem_get},
+	{"len", mem_len},
+	{"set", mem_set},
+	{"pack", mem_pack},
+	{"unpack", mem_unpack},
 	{NULL, NULL}
 };
 
-static const luaL_Reg bufmeta[] = {
-	{"__len", buf_len},
-	{"__tostring", buf_tostring},
+static const luaL_Reg meta[] = {
+	{"__len", mem_len},
+	{"__tostring", mem_tostring},
 	{NULL, NULL}
 };
 
 
-static void createmetatable (lua_State *L) {
-	if (!luaL_getmetatable(L, LUABUF_BUFFER)) {
-		lua_pop(L, 1);  /* pop 'nil' */
-		luaL_newmetatable(L, LUABUF_BUFFER);
-	}
-	luaL_setfuncs(L, bufmeta, 0);  /* add buffer methods to new metatable */
+static void setupmeta (lua_State *L) {
+	luaL_setfuncs(L, meta, 0);  /* add metamethods to new metatable */
+	lua_pushvalue(L, -2);  /* push library */
+	lua_setfield(L, -2, "__index");  /* metatable.__index = library */
 	lua_pop(L, 1);  /* pop new metatable */
 }
 
 
-LUABUFMOD_API int luaopen_buffer (lua_State *L) {
-	luaL_newlib(L, buflib);
-	createmetatable(L);
+LUAMEMMOD_API int luaopen_memory (lua_State *L) {
+	luaL_newlib(L, lib);
+	luaL_newmetatable(L, LUAMEM_ALLOC);
+	setupmeta(L);
+	luamem_pushrefmt(L);
+	setupmeta(L);
 	return 1;
 }

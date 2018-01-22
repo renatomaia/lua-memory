@@ -8,14 +8,18 @@ LUA_BIN= $(LUA_HOME)/bin
 # Your platform. See PLATS for possible values.
 PLAT= none
 
-CC= gcc
-CFLAGS= -O2 -Wall -I$(LUA_INC) $(MYCFLAGS)
-LDFLAGS= -L$(LUA_LIB) $(MYLDFLAGS)
-LIBS= $(MYLIBS)
+CC= gcc -std=gnu99
+CFLAGS= -O2 -Wall -I$(LUA_INC) $(SYSCFLAGS) $(MYCFLAGS)
+LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
+LIBS= $(SYSLIBS) $(MYLIBS)
 
 AR= ar rcu
 RANLIB= ranlib
 RM= rm -f
+
+SYSCFLAGS=
+SYSLDFLAGS=
+SYSLIBS=
 
 MYCFLAGS=
 MYLDFLAGS=
@@ -23,47 +27,67 @@ MYLIBS=
 
 # == END OF USER SETTINGS -- NO NEED TO CHANGE ANYTHING BELOW THIS LINE =======
 
-PLATS= linux solaris macosx
+PLATS= linux macosx
 
-LIBNAME= luabuffer
+MEM_O=	lmemmod.o
+BYT_O=	lbytmod.o
+API_O=	lmemlib.o
 
-OBJ=	lbuflib.o lstrlib.o lstrops.o lstraux.o
-LIB=	lib$(LIBNAME).a
-SO=	lib$(LIBNAME).so
+MEM_M=	memory.so
+BYT_M=	bytes.so
+API_S=	libluamemlib.so
+LIB_S=	libluamemory.so
+LIB_A=	libluamemory.a
+
+ALL_O= $(MEM_O) $(BYT_O) $(API_O)
+ALL_A= $(LIB_A)
+ALL_S= $(LIB_S) $(API_S)
+ALL_M= $(MEM_M) $(BYT_M)
+ALL_T= $(ALL_A) $(ALL_S)
 
 default: $(PLAT)
 
-all:	a so
+all:	$(ALL_T)
 
-o:	$(OBJ)
+o:	$(ALL_O)
 
-a:	$(LIB)
+a:	$(ALL_A)
 
-so:	$(SO)
+so:	$(ALL_S)
 
-# Static Libraies
+m:	$(ALL_M)
 
-$(LIB): $(OBJ)
+$(API_S): $(API_O)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+
+$(MEM_M): $(MEM_O) $(API_S)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+
+$(BYT_M): $(BYT_O) $(API_S)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+
+$(LIB_S): $(LIB_O) $(API_S) $(ALL_M)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+
+$(LIB_A): $(ALL_O)
 	$(AR) $@ $^
 	$(RANLIB) $@
 
-# Dynamic Libraies
-
-$(SO): $(OBJ)
-	$(LD) $(LDFLAGS) -o $@ $^
-
 clean:
-	$(RM) $(OBJ) $(LIB) $(SO)
+	$(RM) $(ALL_T) $(ALL_O)
+
+depend:
+	@$(CC) $(CFLAGS) -MM l*.c
 
 echo:
-	@echo "CC = $(CC)"
-	@echo "CFLAGS = $(CFLAGS)"
-	@echo "AR = $(AR)"
-	@echo "RANLIB = $(RANLIB)"
-	@echo "RM = $(RM)"
-	@echo "MYCFLAGS = $(MYCFLAGS)"
-	@echo "MYLDFLAGS = $(MYLDFLAGS)"
-	@echo "MYLIBS = $(MYLIBS)"
+	@echo "PLAT= $(PLAT)"
+	@echo "CC= $(CC)"
+	@echo "CFLAGS= $(CFLAGS)"
+	@echo "LDFLAGS= $(SYSLDFLAGS)"
+	@echo "LIBS= $(LIBS)"
+	@echo "AR= $(AR)"
+	@echo "RANLIB= $(RANLIB)"
+	@echo "RM= $(RM)"
 
 # Convenience targets for usual platforms
 ALL= all
@@ -75,10 +99,6 @@ none:
 linux:
 	$(MAKE) $(ALL) LD="gcc" MYCFLAGS="-fpic $(MYCFLAGS)" \
 	               MYLDFLAGS="-Wl,-E -O -shared $(MYLDFLAGS)"
-
-solaris:
-	$(MAKE) $(ALL) LD="gcc" MYCFLAGS="-fpic $(MYCFLAGS)" \
-	               MYLDFLAGS="-O -shared $(MYLDFLAGS)"
 
 macosx:
 	$(MAKE) $(ALL) MYCFLAGS="-fno-common $(MYCFLAGS)" \

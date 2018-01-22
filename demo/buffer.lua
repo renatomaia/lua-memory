@@ -9,7 +9,7 @@ for i = 1, buffer.size(b) do
 	print(i, buffer.get(b, i))
 end
 
--- iteractively fill the buffer
+-- iterate to fill the buffer
 for i = 1, buffer.size(b) do
 	print(i, buffer.set(b, i, 2*i))
 end
@@ -17,7 +17,7 @@ end
 -- sets 4th, 5th and 6th bytes in the buffer
 buffer.set(b, 4, 0xff, 0xff, 0xff)
 
--- move 3 bytes from position 4 to position 1
+-- copy 3 bytes from position 4 to position 1
 buffer.fill(b, b, 1, 3, 4)
 
 -- clear the positions after the 3 first bytes
