@@ -1,16 +1,32 @@
 /*
-** $Id$
-** NOTE: most of the code in here is copied from the source of Lua 5.3.1 by
-**       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
-**
-** Stream support for the Lua language
-** See Copyright Notice in lstraux.h
+* NOTE: most of the code below is copied from the source of Lua 5.3.1 by
+*       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
+*
+* Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be
+* included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#define lstrlib_c
+#define lbytmod_c
 
-#include "lstraux.h"
-#include "lstrops.h"
+#include "lmemlib.h"
 
 #include <string.h>
 #include <ctype.h>
@@ -38,7 +54,7 @@
 
 static int str_len (lua_State *L) {
 	size_t l;
-	luabuf_checkstream(L, 1, &l);
+	luamem_checkstring(L, 1, &l);
 	lua_pushinteger(L, (lua_Integer)l);
 	return 1;
 }
@@ -46,15 +62,15 @@ static int str_len (lua_State *L) {
 
 
 static int str_isbuffer (lua_State *L) {
-	lua_pushboolean(L, luabuf_isbuffer(L, 1));
+	lua_pushboolean(L, luamem_isalloc(L, 1));
 	return 1;
 }
 
 
 static int str_diff (lua_State *L) {
 	size_t l1, l2;
-	const char *s1 = luabuf_checkstream(L, 1, &l1);
-	const char *s2 = luabuf_checkstream(L, 2, &l2);
+	const char *s1 = luamem_checkstring(L, 1, &l1);
+	const char *s2 = luamem_checkstring(L, 2, &l2);
 	size_t i, n=(l1<l2 ? l1 : l2);
 	for (i=0; (i<n) && (s1[i]==s2[i]); ++i);
 	if (i<n) {
@@ -73,9 +89,9 @@ static int str_diff (lua_State *L) {
 
 static int str_tostring (lua_State *L) {
 	size_t l;
-	const char *s = luabuf_checkstream(L, 1, &l);
-	lua_Integer start = luastreamI_posrelat(luaL_optinteger(L, 2, 1), l);
-	lua_Integer end = luastreamI_posrelat(luaL_optinteger(L, 3, -1), l);
+	const char *s = luamem_checkstring(L, 1, &l);
+	lua_Integer start = luamem_posrelat(luaL_optinteger(L, 2, 1), l);
+	lua_Integer end = luamem_posrelat(luaL_optinteger(L, 3, -1), l);
 	if (start < 1) start = 1;
 	if (end > (lua_Integer)l) end = l;
 	if (start == 1 && end == l && lua_type(L, 1) == LUA_TSTRING)
@@ -102,7 +118,7 @@ static int str_reverse (lua_State *L) {
 	size_t l;
 	int op = luaL_checkoption(L, 1, NULL, inoutops);
 	if (op == 2) { /* inplace */
-		char *p = luabuf_checkbuffer(L, 2, &l);
+		char *p = luamem_checkmemory(L, 2, &l);
 		size_t i;
 		for (i = 0; i <= l/2; ++i) {
 			size_t j = l - i - 1;
@@ -111,14 +127,14 @@ static int str_reverse (lua_State *L) {
 			p[j] = t;
 		}
 	} else {
-		const char *s = luabuf_checkstream(L, 2, &l);
+		const char *s = luamem_checkstring(L, 2, &l);
 		if (op == 0) { /* string */
-			luabuf_Buffer b;
-			char *p = luabuf_buffinitsize(L, &b, l);
+			luamem_Buffer b;
+			char *p = luamem_buffinitsize(L, &b, l);
 			copyreverse(p, s, l);
-			luabuf_pushresultsize(&b, l);
+			luamem_pushresultsize(&b, l);
 		} else { /* buffer */
-			char *p = luabuf_newbuffer(L, l);
+			char *p = luamem_newalloc(L, l);
 			copyreverse(p, s, l);
 		}
 	}
@@ -136,15 +152,15 @@ static void copylower (char *p, const char *s, size_t l) {
 static int str_lower (lua_State *L) {
 	size_t l;
 	int op = luaL_checkoption(L, 1, NULL, inoutops);
-	const char *s = luabuf_checkstream(L, 2, &l);
+	const char *s = luamem_checkstring(L, 2, &l);
 	if (op == 0) { /* string */
-		luabuf_Buffer b;
-		char *p = luabuf_buffinitsize(L, &b, l);
+		luamem_Buffer b;
+		char *p = luamem_buffinitsize(L, &b, l);
 		copylower(p, s, l);
-		luabuf_pushresultsize(&b, l);
+		luamem_pushresultsize(&b, l);
 	} else {
-		char *p = (op == 1) ? luabuf_newbuffer(L, l)
-		                    : luabuf_checkbuffer(L, 2, NULL);
+		char *p = (op == 1) ? luamem_newalloc(L, l)
+		                    : luamem_checkmemory(L, 2, NULL);
 		copylower(p, s, l);
 	}
 	return 1;
@@ -161,15 +177,15 @@ static void copyupper (char *p, const char *s, size_t l) {
 static int str_upper (lua_State *L) {
 	size_t l;
 	int op = luaL_checkoption(L, 1, NULL, inoutops);
-	const char *s = luabuf_checkstream(L, 2, &l);
+	const char *s = luamem_checkstring(L, 2, &l);
 	if (op == 0) { /* string */
-		luabuf_Buffer b;
-		char *p = luabuf_buffinitsize(L, &b, l);
+		luamem_Buffer b;
+		char *p = luamem_buffinitsize(L, &b, l);
 		copyupper(p, s, l);
-		luabuf_pushresultsize(&b, l);
+		luamem_pushresultsize(&b, l);
 	} else {
-		char *p = (op == 1) ? luabuf_newbuffer(L, l)
-		                    : luabuf_checkbuffer(L, 2, NULL);
+		char *p = (op == 1) ? luamem_newalloc(L, l)
+		                    : luamem_checkmemory(L, 2, NULL);
 		copyupper(p, s, l);
 	}
 	return 1;
@@ -196,23 +212,23 @@ static void copyrepeat (char *p,
 static int str_rep (lua_State *L) {
 	size_t l, lsep;
 	int op = luaL_checkoption(L, 1, NULL, outops);
-	const char *s = luabuf_checkstream(L, 2, &l);
+	const char *s = luamem_checkstring(L, 2, &l);
 	lua_Integer n = luaL_checkinteger(L, 3);
 	const char *sep = luaL_optlstring(L, 4, "", &lsep);
 	if (n <= 0) {
 		if (op == 0) lua_pushliteral(L, "");
-		else luabuf_newbuffer(L, 0);
+		else luamem_newalloc(L, 0);
 	} else if (l + lsep < l || l + lsep > LUABUF_MAXSIZE / n)  /* may overflow? */
 		return luaL_error(L, "resulting string too large");
 	else {
 		size_t totallen = (size_t)n * l + (size_t)(n - 1) * lsep;
 		if (op == 0) {  /* string */
-			luabuf_Buffer b;
-			char *p = luabuf_buffinitsize(L, &b, totallen);
+			luamem_Buffer b;
+			char *p = luamem_buffinitsize(L, &b, totallen);
 			copyrepeat(p, s, l, sep, lsep, n);
-			luabuf_pushresultsize(&b, totallen);
+			luamem_pushresultsize(&b, totallen);
 		} else {
-			char *p = luabuf_newbuffer(L, totallen);
+			char *p = luamem_newalloc(L, totallen);
 			copyrepeat(p, s, l, sep, lsep, n);
 		}
 	}
@@ -222,8 +238,8 @@ static int str_rep (lua_State *L) {
 
 static int str_byte (lua_State *L) {
 	size_t l;
-	const char *s = luabuf_checkstream(L, 1, &l);
-	return luastreamI_str2byte(L, s, l);
+	const char *s = luamem_checkstring(L, 1, &l);
+	return luamem_str2byte(L, s, l);
 }
 
 
@@ -231,13 +247,13 @@ static int str_char (lua_State *L) {
 	int n = lua_gettop(L)-1;  /* number of bytes */
 	int op = luaL_checkoption(L, 1, NULL, outops);
 	if (op == 0) {
-		luabuf_Buffer b;
-		char *p = luabuf_buffinitsize(L, &b, n);
-		luastreamI_code2char(L, 2, p, n);
-		luabuf_pushresultsize(&b, n);
+		luamem_Buffer b;
+		char *p = luamem_buffinitsize(L, &b, n);
+		luamem_code2char(L, 2, p, n);
+		luamem_pushresultsize(&b, n);
 	} else {
-		char *p = luabuf_newbuffer(L, n);
-		luastreamI_code2char(L, 2, p, n);
+		char *p = luamem_newalloc(L, n);
+		luamem_code2char(L, 2, p, n);
 	}
 	return 1;
 }
@@ -245,22 +261,22 @@ static int str_char (lua_State *L) {
 
 static int writer (lua_State *L, const void *b, size_t size, void *B) {
 	(void)L;
-	luabuf_addstream((luabuf_Buffer *) B, (const char *)b, size);
+	luamem_addlstring((luamem_Buffer *) B, (const char *)b, size);
 	return 0;
 }
 
 
 static int str_dump (lua_State *L) {
-	luabuf_Buffer b;
+	luamem_Buffer b;
 	int strip = lua_toboolean(L, 3);
 	int op = luaL_checkoption(L, 1, NULL, outops);
 	luaL_checktype(L, 2, LUA_TFUNCTION);
 	lua_settop(L, 1);
-	luabuf_buffinit(L,&b);
+	luamem_buffinit(L,&b);
 	if (lua_dump(L, writer, &b, strip) != 0)
 		return luaL_error(L, "unable to dump given function");
-	if (op == 0) luabuf_pushresult(&b);
-	else luabuf_pushresbuf(&b);
+	if (op == 0) luamem_pushresult(&b);
+	else luamem_pushresbuf(&b);
 	return 1;
 }
 
@@ -656,9 +672,9 @@ static int nospecials (const char *p, size_t l) {
 
 static int str_find_aux (lua_State *L, int find) {
 	size_t ls, lp;
-	const char *s = luabuf_checkstream(L, 1, &ls);
-	const char *p = luabuf_checkstream(L, 2, &lp);
-	lua_Integer init = luastreamI_posrelat(luaL_optinteger(L, 3, 1), ls);
+	const char *s = luamem_checkstring(L, 1, &ls);
+	const char *p = luamem_checkstring(L, 2, &lp);
+	lua_Integer init = luamem_posrelat(luaL_optinteger(L, 3, 1), ls);
 	if (init < 1) init = 1;
 	else if (init > (lua_Integer)ls + 1) {  /* start after string's end? */
 		lua_pushnil(L);  /* cannot find anything */
@@ -719,8 +735,8 @@ static int str_match (lua_State *L) {
 static int gmatch_aux (lua_State *L) {
 	MatchState ms;
 	size_t ls, lp;
-	const char *s = luabuf_tostream(L, lua_upvalueindex(1), &ls);
-	const char *p = luabuf_tostream(L, lua_upvalueindex(2), &lp);
+	const char *s = luamem_tostring(L, lua_upvalueindex(1), &ls);
+	const char *p = luamem_tostring(L, lua_upvalueindex(2), &lp);
 	const char *src;
 	ms.L = L;
 	ms.matchdepth = MAXCCALLS;
@@ -746,8 +762,8 @@ static int gmatch_aux (lua_State *L) {
 
 
 static int str_gmatch (lua_State *L) {
-	luabuf_checkstream(L, 1, NULL);
-	luabuf_checkstream(L, 2, NULL);
+	luamem_checkstring(L, 1, NULL);
+	luamem_checkstring(L, 2, NULL);
 	lua_settop(L, 2);
 	lua_pushinteger(L, 0);
 	lua_pushcclosure(L, gmatch_aux, 3);
@@ -755,23 +771,23 @@ static int str_gmatch (lua_State *L) {
 }
 
 
-static void add_s (MatchState *ms, luabuf_Buffer *b, const char *s,
+static void add_s (MatchState *ms, luamem_Buffer *b, const char *s,
                                                         const char *e) {
 	size_t l, i;
 	lua_State *L = ms->L;
-	const char *news = luabuf_tostream(L, 3, &l);
+	const char *news = luamem_tostring(L, 3, &l);
 	for (i = 0; i < l; i++) {
 		if (news[i] != L_ESC)
-			luabuf_addchar(b, news[i]);
+			luamem_addchar(b, news[i]);
 		else {
 			i++;  /* skip ESC */
 			if (!isdigit(uchar(news[i]))) {
 				if (news[i] != L_ESC)
 					luaL_error(L, "invalid use of '%c' in replacement string", L_ESC);
-				luabuf_addchar(b, news[i]);
+				luamem_addchar(b, news[i]);
 			}
 			else if (news[i] == '0')
-				luabuf_addstream(b, s, e - s);
+				luamem_addlstring(b, s, e - s);
 			else {
 				push_onecapture(ms, news[i] - '1', s, e);
 				luaL_tolstring(L, -1, NULL);  /* if number, convert it to string */
@@ -784,7 +800,7 @@ static void add_s (MatchState *ms, luabuf_Buffer *b, const char *s,
 
 
 static void add_value (MatchState *ms,
-                       luabuf_Buffer *b,
+                       luamem_Buffer *b,
                        const char *s,
                        const char *e,
                        int tr) {
@@ -820,18 +836,18 @@ static void add_value (MatchState *ms,
 static int str_gsub (lua_State *L) {
 	size_t srcl, lp;
 	int op = luaL_checkoption(L, 1, NULL, outops);
-	const char *src = luabuf_checkstream(L, 2, &srcl);
-	const char *p = luabuf_checkstream(L, 3, &lp);
+	const char *src = luamem_checkstring(L, 2, &srcl);
+	const char *p = luamem_checkstring(L, 3, &lp);
 	int tr = lua_type(L, 4);
 	lua_Integer max_s = luaL_optinteger(L, 5, srcl + 1);
 	int anchor = (*p == '^');
 	lua_Integer n = 0;
 	MatchState ms;
-	luabuf_Buffer b;
+	luamem_Buffer b;
 	luaL_argcheck(L, tr == LUA_TNUMBER || tr == LUA_TSTRING ||
 	                 tr == LUA_TFUNCTION || tr == LUA_TTABLE, 3,
 	                    "string/function/table expected");
-	luabuf_buffinit(L, &b);
+	luamem_buffinit(L, &b);
 	if (anchor) {
 		p++; lp--;  /* skip anchor character */
 	}
@@ -852,13 +868,13 @@ static int str_gsub (lua_State *L) {
 		if (e && e>src) /* non empty match? */
 			src = e;  /* skip it */
 		else if (src < ms.src_end)
-			luabuf_addchar(&b, *src++);
+			luamem_addchar(&b, *src++);
 		else break;
 		if (anchor) break;
 	}
-	luabuf_addstream(&b, src, ms.src_end-src);
-	if (op == 0) luabuf_pushresult(&b);
-	else luabuf_pushresbuf(&b);
+	luamem_addlstring(&b, src, ms.src_end-src);
+	if (op == 0) luamem_pushresult(&b);
+	else luamem_pushresbuf(&b);
 	lua_pushinteger(L, n);  /* number of substitutions */
 	return 2;
 }
@@ -886,14 +902,14 @@ static int str_gsub (lua_State *L) {
 #define MAX_FORMAT	(sizeof(FLAGS) + 2 + 10)
 
 
-static void addquoted (lua_State *L, luabuf_Buffer *b, int arg) {
+static void addquoted (lua_State *L, luamem_Buffer *b, int arg) {
 	size_t l;
-	const char *s = luabuf_checkstream(L, arg, &l);
-	luabuf_addchar(b, '"');
+	const char *s = luamem_checkstring(L, arg, &l);
+	luamem_addchar(b, '"');
 	while (l--) {
 		if (*s == '"' || *s == '\\' || *s == '\n') {
-			luabuf_addchar(b, '\\');
-			luabuf_addchar(b, *s);
+			luamem_addchar(b, '\\');
+			luamem_addchar(b, *s);
 		}
 		else if (*s == '\0' || iscntrl(uchar(*s))) {
 			char buff[10];
@@ -901,13 +917,13 @@ static void addquoted (lua_State *L, luabuf_Buffer *b, int arg) {
 				sprintf(buff, "\\%d", (int)uchar(*s));
 			else
 				sprintf(buff, "\\%03d", (int)uchar(*s));
-			luabuf_addstring(b, buff);
+			luamem_addstring(b, buff);
 		}
 		else
-			luabuf_addchar(b, *s);
+			luamem_addchar(b, *s);
 		s++;
 	}
-	luabuf_addchar(b, '"');
+	luamem_addchar(b, '"');
 }
 
 static const char *scanformat (lua_State *L, const char *strfrmt, char *form) {
@@ -952,16 +968,16 @@ static int str_format (lua_State *L) {
 	int op = luaL_checkoption(L, arg++, NULL, outops);
 	const char *strfrmt = luaL_checklstring(L, arg, &sfl);
 	const char *strfrmt_end = strfrmt+sfl;
-	luabuf_Buffer b;
-	luabuf_buffinit(L, &b);
+	luamem_Buffer b;
+	luamem_buffinit(L, &b);
 	while (strfrmt < strfrmt_end) {
 		if (*strfrmt != L_ESC)
-			luabuf_addchar(&b, *strfrmt++);
+			luamem_addchar(&b, *strfrmt++);
 		else if (*++strfrmt == L_ESC)
-			luabuf_addchar(&b, *strfrmt++);  /* %% */
+			luamem_addchar(&b, *strfrmt++);  /* %% */
 		else { /* format item */
 			char form[MAX_FORMAT];  /* to store the format ('%...') */
-			char *buff = luabuf_prepbuffsize(&b, MAX_ITEM);  /* to put formatted item */
+			char *buff = luamem_prepbuffsize(&b, MAX_ITEM);  /* to put formatted item */
 			int nb = 0;  /* number of bytes in added item */
 			if (++arg > top)
 				luaL_argerror(L, arg, "no value");
@@ -1014,8 +1030,8 @@ static int str_format (lua_State *L) {
 			luaL_addsize(&b, nb);
 		}
 	}
-	if (op == 0) luabuf_pushresult(&b);
-	else luabuf_pushresbuf(&b);
+	if (op == 0) luamem_pushresult(&b);
+	else luamem_pushresbuf(&b);
 	return 1;
 }
 
@@ -1219,9 +1235,9 @@ static KOption getdetails (Header *h, size_t totalsize,
 ** the size of a Lua integer, correcting the extra sign-extension
 ** bytes if necessary (by default they would be zeros).
 */
-static void packint (luabuf_Buffer *b, lua_Unsigned n,
+static void packint (luamem_Buffer *b, lua_Unsigned n,
                      int islittle, int size, int neg) {
-	char *buff = luabuf_prepbuffsize(b, size);
+	char *buff = luamem_prepbuffsize(b, size);
 	int i;
 	buff[islittle ? 0 : size - 1] = (char)(n & MC);  /* first byte */
 	for (i = 1; i < size; i++) {
@@ -1255,7 +1271,7 @@ static void copywithendian (volatile char *dest, volatile const char *src,
 
 
 static int str_pack (lua_State *L) {
-	luabuf_Buffer b;
+	luamem_Buffer b;
 	Header h;
 	int arg = 1;  /* current argument to pack */
 	int op = luaL_checkoption(L, arg++, NULL, outops);
@@ -1263,13 +1279,13 @@ static int str_pack (lua_State *L) {
 	size_t totalsize = 0;  /* accumulate total size of result */
 	initheader(L, &h);
 	lua_pushnil(L);  /* mark to separate arguments from string buffer */
-	luabuf_buffinit(L, &b);
+	luamem_buffinit(L, &b);
 	while (*fmt != '\0') {
 		int size, ntoalign;
 		KOption opt = getdetails(&h, totalsize, &fmt, &size, &ntoalign);
 		totalsize += ntoalign + size;
 		while (ntoalign-- > 0)
-		 luabuf_addchar(&b, LUA_PACKPADBYTE);  /* fill alignment */
+		 luamem_addchar(&b, LUA_PACKPADBYTE);  /* fill alignment */
 		arg++;
 		switch (opt) {
 			case Kint: {  /* signed integers */
@@ -1291,7 +1307,7 @@ static int str_pack (lua_State *L) {
 			}
 			case Kfloat: {  /* floating-point options */
 				volatile Ftypes u;
-				char *buff = luabuf_prepbuffsize(&b, size);
+				char *buff = luamem_prepbuffsize(&b, size);
 				lua_Number n = luaL_checknumber(L, arg);  /* get argument */
 				if (size == sizeof(u.f)) u.f = (float)n;  /* copy it into 'u' */
 				else if (size == sizeof(u.d)) u.d = (double)n;
@@ -1303,39 +1319,39 @@ static int str_pack (lua_State *L) {
 			}
 			case Kchar: {  /* fixed-size string */
 				size_t len;
-				const char *s = luabuf_checkstream(L, arg, &len);
+				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, len == (size_t)size, arg, "wrong length");
-				luabuf_addstream(&b, s, size);
+				luamem_addlstring(&b, s, size);
 				break;
 			}
 			case Kstring: {  /* strings with length count */
 				size_t len;
-				const char *s = luabuf_checkstream(L, arg, &len);
+				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, size >= (int)sizeof(size_t) ||
 				                 len < ((size_t)1 << (size * NB)),
 				                 arg, "string length does not fit in given size");
 				packint(&b, (lua_Unsigned)len, h.islittle, size, 0);  /* pack length */
-				luabuf_addstream(&b, s, len);
+				luamem_addlstring(&b, s, len);
 				totalsize += len;
 				break;
 			}
 			case Kzstr: {  /* zero-terminated string */
 				size_t len;
-				const char *s = luabuf_checkstream(L, arg, &len);
+				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, strlen(s) == len, arg, "string contains zeros");
-				luabuf_addstream(&b, s, len);
-				luabuf_addchar(&b, '\0');  /* add zero at the end */
+				luamem_addlstring(&b, s, len);
+				luamem_addchar(&b, '\0');  /* add zero at the end */
 				totalsize += len + 1;
 				break;
 			}
-			case Kpadding: luabuf_addchar(&b, LUA_PACKPADBYTE);  /* go through */
+			case Kpadding: luamem_addchar(&b, LUA_PACKPADBYTE);  /* go through */
 			case Kpaddalign: case Knop:
 				arg--;  /* undo increment */
 				break;
 		}
 	}
-	if (op == 0) luabuf_pushresult(&b);
-	else luabuf_pushresbuf(&b);
+	if (op == 0) luamem_pushresult(&b);
+	else luamem_pushresbuf(&b);
 	return 1;
 }
 
@@ -1357,7 +1373,7 @@ static int str_packsize (lua_State *L) {
 		switch (opt) {
 			case Kstring: {  /* strings with length count */
 				size_t len;
-				luabuf_checkstream(L, arg, &len);
+				luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, size >= (int)sizeof(size_t) ||
 				                 len < ((size_t)1 << (size * NB)),
 				                 arg, "string length does not fit in given size");
@@ -1366,7 +1382,7 @@ static int str_packsize (lua_State *L) {
 			}
 			case Kzstr: {  /* zero-terminated string */
 				size_t len;
-				const char *s = luabuf_checkstream(L, arg, &len);
+				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, strlen(s) == len, arg, "string contains zeros");
 				totalsize += len + 1;
 				break;
@@ -1417,8 +1433,8 @@ static int str_unpack (lua_State *L) {
 	Header h;
 	const char *fmt = luaL_checkstring(L, 1);
 	size_t ld;
-	const char *data = luabuf_checkstream(L, 2, &ld);
-	size_t pos = (size_t)luastreamI_posrelat(luaL_optinteger(L, 3, 1), ld) - 1;
+	const char *data = luamem_checkstring(L, 2, &ld);
+	size_t pos = (size_t)luamem_posrelat(luaL_optinteger(L, 3, 1), ld) - 1;
 	int n = 0;  /* number of results */
 	luaL_argcheck(L, pos <= ld, 3, "initial position out of string");
 	initheader(L, &h);
@@ -1503,7 +1519,7 @@ static const luaL_Reg strlib[] = {
 };
 
 
-LUABUFMOD_API int luaopen_buffer_stream (lua_State *L) {
+LUAMEMMOD_API int luaopen_bytes (lua_State *L) {
 	luaL_newlib(L, strlib);
 	return 1;
 }
