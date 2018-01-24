@@ -30,20 +30,18 @@ MYLIBS=
 PLATS= linux macosx
 
 MEM_O=	lmemmod.o
-BYT_O=	lbytmod.o
 API_O=	lmemlib.o
 
 MEM_M=	memory.so
-BYT_M=	bytes.so
 API_S=	libluamemlib.so
 LIB_S=	libluamemory.so
 LIB_A=	libluamemory.a
 
-ALL_O= $(MEM_O) $(BYT_O) $(API_O)
+ALL_O= $(MEM_O) $(API_O)
 ALL_A= $(LIB_A)
 ALL_S= $(LIB_S) $(API_S)
-ALL_M= $(MEM_M) $(BYT_M)
-ALL_T= $(ALL_A) $(ALL_S)
+ALL_M= $(MEM_M)
+ALL_T= $(ALL_A) $(ALL_S) $(ALL_M)
 
 default: $(PLAT)
 
@@ -61,9 +59,6 @@ $(API_S): $(API_O)
 	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(MEM_M): $(MEM_O) $(API_S)
-	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
-
-$(BYT_M): $(BYT_O) $(API_S)
 	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(LIB_S): $(LIB_O) $(API_S) $(ALL_M)

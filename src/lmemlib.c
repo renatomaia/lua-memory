@@ -1,9 +1,3 @@
-/*
-** $Id$
-** Auxiliary functions for handling generic streams in Lua.
-** See Copyright Notice in lstraux.h
-*/
-
 #define lmemlib_c
 
 #define LUAMEMLIB_API
@@ -24,61 +18,48 @@ LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
 
 #define LUAMEM_REFREGISTRY	"luamem_ReferenceRegistry"
 
-static int pushref (lua_State *L, char *mem) {
-	if (!luaL_getsubtable(L, LUA_REGISTRYINDEX, LUAMEM_REFREGISTRY)) {
-		lua_pushliteral(L, "v");
-		lua_setfield(L, -2, "__mode");
-		lua_pushvalue(L, -1);
-		lua_setmetatable(L, -2);
-	}
-	lua_pushlightuserdata(L, mem);
-	return lua_gettable(L, -2) == LUA_TUSERDATA;
-}
+typedef struct luamem_Ref {
+	char *mem;
+	size_t len;
+	luamem_Unref unref;
+} luamem_Ref;
+
+#define unref(L,r)	if (r->unref) ref->unref(L, r->mem, r->len)
 
 static int luaunref (lua_State *L) {
-	luamem_Ref *ref = luamem_toref(L, 1);
-	if (ref && ref->unref) ref->unref(ref->memory, ref->len);
+	luamem_Ref *ref = luaL_testudata(L, 1, LUAMEM_REF);
+	if (ref) unref(L, ref);
 	return 0;
 }
 
-LUAMEMLIB_API void luamem_pushrefmt (lua_State *L) {
+LUAMEMLIB_API void luamem_newref (lua_State *L) {
+	luamem_Ref *ref = (luamem_Ref *)lua_newuserdata(L, sizeof(luamem_Ref));
+	ref->mem = NULL;
+	ref->len = 0;
+	ref->unref = NULL;
 	if (luaL_newmetatable(L, LUAMEM_REF)) {
 		lua_pushcfunction(L, luaunref);
 		lua_setfield(L, -2, "__gc");
 	}
+	lua_setmetatable(L, -2);
 }
 
-LUAMEMLIB_API luamem_Ref *luamem_pushref (lua_State *L, char *mem) {
-	luamem_Ref *ref;
-	if (pushref(L, mem)) {
-		ref = (luamem_Ref *)lua_touserdata(L, -1);
-	} else {
-		lua_pop(L, 1);
-		ref = (luamem_Ref *)lua_newuserdata(L, sizeof(luamen_Ref));
-		ref->len = 0;
-		ref->unref = NULL;
-		ref->memory = mem;
-		luamem_pushrefmt(L);
-		lua_setmetatable(L, -2);
-		lua_pushlightuserdata(L, mem);
-		lua_pushvalue(L, -2);
-		lua_settable(L, -4)
+LUAMEMLIB_API int luamem_setref (lua_State *L, int idx, char *mem, size_t len, luamem_Unref unref) {
+	luamem_Ref *ref = luaL_testudata(L, 1, LUAMEM_REF);
+	if (ref) {
+		if (mem != ref->mem) unref(L, ref);
+		ref->mem = mem;
+		ref->len = len;
+		ref->unref = unref;
+		return 1;
 	}
-	lua_remove(L, -2);
-	return ref;
-}
-
-LUAMEMLIB_API luamem_Ref *luamem_getref (lua_State *L, char *mem) {
-	luamem_Ref *ref;
-	pushref(L, mem);
-	ref = (luamem_Ref *)lua_touserdata(L, -1);
-	lua_pop(L, 2);
-	return ref;
+	return 0;
 }
 
 
-LUAMEMLIB_API char *luamem_tomemory (lua_State *L, int idx, size_t *len) {
+LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx, size_t *len, int *isref) {
 	void *p = lua_touserdata(L, idx);
+	if (isref) *isref = 0;
 	if (p) {  /* value is a userdata? */
 		if (lua_getmetatable(L, idx)) {  /* does it have a metatable? */
 			char *mem;
@@ -91,8 +72,9 @@ LUAMEMLIB_API char *luamem_tomemory (lua_State *L, int idx, size_t *len) {
 				luaL_getmetatable(L, LUAMEM_REF);  /* get referenced memory metatable */
 				if (lua_rawequal(L, -1, -2)) {
 					luamem_Ref *ref = (luamem_Ref *)p;
+					if (isref) *isref = 1;
 					if (len) *len = ref->len;
-					mem = ref->memory;
+					mem = ref->mem;
 				} else {
 					if (len) *len = 0;
 					mem = NULL;
@@ -128,6 +110,29 @@ LUAMEMLIB_API const char *luamem_checkstring (lua_State *L, int idx, size_t *len
 	return s;
 }
 
+
+LUAMEMLIB_API void *luamem_realloc(lua_State *L, void *mem, size_t old,
+                                                            size_t new)
+{
+	void *userdata;
+	lua_Alloc alloc = lua_getallocf(L, &userdata);
+	return alloc(userdata, mem, old, new);
+}
+
+LUAMEMLIB_API void luamem_free(lua_State *L, void *memo, size_t size)
+{
+	void *userdata;
+	lua_Alloc alloc = lua_getallocf(L, &userdata);
+	alloc(userdata, memo, size, 0);
+}
+
+LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx)
+{
+	lua_Integer sz = luaL_checkinteger(L, idx);
+	luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUAMEM_MAXALLOC,
+	                 idx, "invalid size");
+	return (size_t)sz;
+}
 
 /*
 * NOTE: most of the code below is copied from the source of Lua 5.3.1 by
