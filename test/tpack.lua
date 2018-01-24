@@ -1,8 +1,61 @@
--- $Id: tpack.lua,v 1.10 2014/12/26 17:20:53 roberto Exp $
-local buffer = require "buffer"
-local pack = buffer.pack
+local memory = require "memory"
+local pack = memory.pack
 local packsize = string.packsize
-local unpack = buffer.unpack
+local unpack = memory.unpack
+
+do
+  local function failpack(expectpos, expectvals, ok, pos, ...)
+    assert(ok == false)
+    assert(pos == expectpos)
+    for i, value in ipairs(expectvals) do
+      assert(value == select(i, ...))
+    end
+    assert(select("#", ...) == #expectvals)
+  end
+
+  local m = memory.create(0)
+  failpack(1, {123,456,789}, pack(m, 1, "b", 123,456,789))
+
+  local m = memory.create(10)
+  memory.fill(m, 0x55)
+  local values = {
+    0x11111111,
+    0x22222222,
+    0x33333333,
+    0x44444444,
+  }
+  local expectvals = {
+    0x33333333,
+    0x44444444,
+  }
+  failpack(9, expectvals, pack(m, 1, "i4i4i4i4", table.unpack(values)))
+end
+
+--[[
+NOTE: most of the code below is copied from the tests of Lua 5.3.1 by
+      R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
+
+Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+--]]
 
 print "testing pack/unpack"
 
@@ -40,10 +93,10 @@ function checkerror (msg, f, ...)
   assert(not status and string.find(err, msg))
 end
 
-local function assertpack(sz, n, ok, pos, validx)
-	assert(ok)
+local function assertpack(sz, n, ok, pos, ...)
+	assert(ok == true)
 	assert(pos == sz+1)
-	assert(validx == n+1)
+	assert(select("#", ...) == 0)
 end
 
 local function assertunpack(sz, vals, ...)
@@ -58,7 +111,7 @@ end
 do
 	local function testpack(fmt, val)
 		local sz = packsize(fmt)
-		local b = buffer.create(sz)
+		local b = memory.create(sz)
 		assertpack(sz, 1, pack(b, 1, fmt, val))
 		assertunpack(sz, {val}, unpack(b, 1, fmt))
 	end
@@ -76,7 +129,7 @@ end
 for i = 1, NB do
   -- small numbers with signal extension ("\xFF...")
   local s = string.rep("\xff", i)
-  local b = buffer.create(i)
+  local b = memory.create(i)
   assertpack(i, 1, pack(b, 1, "i" .. i, -1))
   assert(tostring(b) == s)
   assertunpack(i, {-1}, unpack(b, 1, "i" .. i))
@@ -92,36 +145,36 @@ for i = 1, NB do
 end
 
 do
-  local b = buffer.create(sizeLI+1)
+  local b = memory.create(sizeLI+1)
   local lnum = 0x13121110090807060504030201
   assertpack(sizeLI, 1, pack(b, 1, "<j", lnum))
   assertunpack(sizeLI, {lnum}, unpack(b, 1, "<j"))
-  buffer.set(b, sizeLI+1, 0)
+  memory.set(b, sizeLI+1, 0)
   assertunpack(sizeLI+1, {lnum}, unpack(b, 1, "<i"..sizeLI+1))
   assertunpack(sizeLI+1, {lnum}, unpack(b, 1, "<i"..sizeLI+1))
 
   for i = sizeLI + 1, NB do
-    local b = buffer.create(i)
+    local b = memory.create(i)
     assertpack(sizeLI, 1, pack(b, 1, "<j", -lnum))
     assertunpack(sizeLI, {-lnum}, unpack(b, 1, "<j"))
     -- strings with (correct) extra bytes
-    buffer.fill(b, 0, -(i-sizeLI))
+    memory.fill(b, 0, -(i-sizeLI))
     assertunpack(i, {-lnum}, unpack(b, 1, "<I" .. i))
-    buffer.fill(b, 0xff, -(i-sizeLI))
+    memory.fill(b, 0xff, -(i-sizeLI))
     assertunpack(i, {-lnum}, unpack(b, 1, "<i" .. i))
-    for i = 1, buffer.len(b)/2 do
-      local t = buffer.get(b, -i)
-      buffer.set(b, -i, buffer.get(b, i))
-      buffer.set(b, i, t)
+    for i = 1, memory.len(b)/2 do
+      local t = memory.get(b, -i)
+      memory.set(b, -i, memory.get(b, i))
+      memory.set(b, i, t)
     end
     assertunpack(i, {-lnum}, unpack(b, 1, ">i" .. i))
 
     -- overflows
-    buffer.fill(b, 0, 1, i-1)
-    buffer.set(b, i, 1)
+    memory.fill(b, 0, 1, i-1)
+    memory.set(b, i, 1)
     checkerror("does not fit", unpack, b, 1, "<I" .. i)
-    buffer.set(b, 1, 1)
-    buffer.fill(b, 0, 2, i)
+    memory.set(b, 1, 1)
+    memory.fill(b, 0, 2, i)
     checkerror("does not fit", unpack, b, 1, ">i" .. i)
   end
 end
@@ -131,7 +184,7 @@ for i = 1, sizeLI do
   local lnum = 0x13121110090807060504030201
   local n = lnum & (~(-1 << (i * 8)))
   local s = string.sub(lstr, 1, i)
-  local b = buffer.create(i)
+  local b = memory.create(i)
   assertpack(i, 1, pack(b, 1, "<i" .. i, n))
   assert(tostring(b) == s)
   assertpack(i, 1, pack(b, 1, ">i" .. i, n))
@@ -143,10 +196,10 @@ end
 do
   local u = 0xf0
   for i = 1, sizeLI - 1 do
-    local b = buffer.create(i)
-    buffer.set(b, 1, 0xf0)
+    local b = memory.create(i)
+    memory.set(b, 1, 0xf0)
     if i>=2 then
-    	buffer.fill(b, 0xff, 2, i)
+    	memory.fill(b, 0xff, 2, i)
     end
     assertunpack(i, {-16}, unpack(b, 1, "<i"..i))
     assertunpack(i, {u}, unpack(b, 1, ">I"..i))
@@ -156,10 +209,10 @@ end
 
 -- mixed endianness
 do
-  local b = buffer.create(4)
+  local b = memory.create(4)
   assertpack(4, 2, pack(b, 1, ">i2 <i2", 10, 20))
   assert(tostring(b) == "\0\10\20\0")
-  buffer.fill(b, "\10\0\0\20")
+  memory.fill(b, "\10\0\0\20")
   assertunpack(4, {10, 20}, unpack(b, 1, "<i2 >i2"))
   assertpack(4, 1, pack(b, 1, "=i4", 2001))
   local s = tostring(b)
@@ -170,13 +223,13 @@ end
 print("testing invalid formats")
 
 do
-  local b = buffer.create(math.max(16, NB+1))
+  local b = memory.create(math.max(16, NB+1))
   checkerror("out of limits", pack, b, 1, "i0", 0)
   checkerror("out of limits", pack, b, 1, "i" .. NB + 1, 0)
   checkerror("out of limits", pack, b, 1, "!" .. NB + 1, 0)
   checkerror("%(17%) out of limits %[1,16%]", pack, b, 1, "Xi" .. NB + 1)
   checkerror("invalid format option 'r'", pack, b, 1, "i3r", 0)
-  buffer.fill(b, 16, 1, 16)
+  memory.fill(b, 16, 1, 16)
   checkerror("16%-byte integer", unpack, b, 1, "i16")
   checkerror("not power of 2", pack, b, 1, "!4i3", 0);
   checkerror("missing size", pack, b, 1, "c", "")
@@ -184,7 +237,7 @@ end
 
 -- overflow in packing
 for i = 1, sizeLI - 1 do
-  local b = buffer.create(i)
+  local b = memory.create(i)
   local umax = (1 << (i * 8)) - 1
   local max = umax >> 1
   local min = ~max
@@ -206,7 +259,7 @@ end
 
 -- Lua integer size
 do
-  local b = buffer.create(sizeLI)
+  local b = memory.create(sizeLI)
   assertpack(sizeLI, 1, pack(b, 1, ">j", math.maxinteger))
   assertunpack(sizeLI, {math.maxinteger}, unpack(b, 1, ">j"))
   assertpack(sizeLI, 1, pack(b, 1, "<j", math.mininteger))
@@ -216,8 +269,8 @@ do
 end
 
 do
-  local b1 = buffer.create(sizefloat)
-  local b2 = buffer.create(sizefloat)
+  local b1 = memory.create(sizefloat)
+  local b2 = memory.create(sizefloat)
   pack(b1, 1, "f", 24)
   if little then
     pack(b2, 1, "<f", 24)

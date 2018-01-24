@@ -7,73 +7,118 @@
 
 
 static int mem_create (lua_State *L) {
-	char *p;
-	size_t lb;
-	const char *s = NULL;
-	if (lua_type(L, 1) == LUA_TNUMBER) {
-		lua_Integer sz = luaL_checkinteger(L, 1);
-		luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUABUF_MAXSIZE, 1,
-		                                                 "invalid size");
-		lb = (size_t)sz;
+	if (lua_gettop(L) == 0) {
+		luamem_newref(L);
 	} else {
-		lua_Integer posi, pose;
-		s = luamem_checkstring(L, 1, &lb);
-		posi = luamem_posrelat(luaL_optinteger(L, 2, 1), lb);
-		pose = luamem_posrelat(luaL_optinteger(L, 3, -1), lb);
-		if (posi < 1) posi = 1;
-		if (pose > (lua_Integer)lb) pose = lb;
-		if (posi > pose) {
-			lb = 0;
-			s = NULL;
+		char *p;
+		size_t len;
+		const char *s = NULL;
+		if (lua_type(L, 1) == LUA_TNUMBER) {
+			len = luamem_checklenarg(L, 1);
 		} else {
-			lb = (int)(pose - posi + 1);
-			if (posi + lb <= pose)  /* arithmetic overflow? */
-				return luaL_error(L, "string slice too long");
-			s += posi-1;
+			lua_Integer posi, pose;
+			s = luamem_checkstring(L, 1, &len);
+			posi = luamem_posrelat(luaL_optinteger(L, 2, 1), len);
+			pose = luamem_posrelat(luaL_optinteger(L, 3, -1), len);
+			if (posi < 1) posi = 1;
+			if (pose > (lua_Integer)len) pose = len;
+			if (posi > pose) {
+				len = 0;
+				s = NULL;
+			} else {
+				len = (int)(pose - posi + 1);
+				if (posi + len <= pose)  /* arithmetic overflow? */
+					return luaL_error(L, "string slice too long");
+				s += posi-1;
+			}
 		}
+		p = luamem_newalloc(L, len);
+		if (s) memcpy(p, s, len * sizeof(char));
+		else memset(p, 0, len * sizeof(char));
 	}
-	p = luamem_newalloc(L, lb);
-	if (s) memcpy(p, s, lb * sizeof(char));
+	return 1;
+}
+
+static int mem_resize (lua_State *L) {
+	char *mem;
+	size_t len;
+	size_t size = luamem_checklenarg(L, 2);
+	luaL_argcheck(L, luamem_isref(L, 1), 1, "resizable memory expected");
+	mem = luamem_tomemory(L, 1, &len);
+	if (len != size) {
+		mem = luamem_realloc(L, mem, len, size);
+		if (!mem) luaL_error(L, "out of memory");
+		if (len < size) memset(mem+len, 0, (size-len)*sizeof(char));
+		luamem_setref(L, 1, mem, size, luamem_free);
+	}
+	return 0;
+}
+
+static int mem_type (lua_State *L) {
+	int isref;
+	char *mem = luamem_tomemoryx(L, 1, NULL, &isref);
+	if (!mem) lua_pushnil(L);
+	else if (isref) lua_pushliteral(L, "fixed");
+	else lua_pushliteral(L, "resizable");
 	return 1;
 }
 
 static int mem_len (lua_State *L) {
-	size_t lb;
-	luamem_checkmemory(L, 1, &lb);
-	lua_pushinteger(L, (lua_Integer)lb);
+	size_t len;
+	luamem_checkmemory(L, 1, &len);
+	lua_pushinteger(L, (lua_Integer)len);
 	return 1;
 }
 
 static int mem_tostring (lua_State *L) {
-	size_t lb;
-	const char *s = luamem_checkmemory(L, 1, &lb);
-	if (lb>0) lua_pushlstring(L, s, lb);
+	size_t len;
+	const char *s = luamem_checkmemory(L, 1, &len);
+	if (len>0) lua_pushlstring(L, s, len);
 	else lua_pushliteral(L, "");
 	return 1;
 }
 
+static int mem_diff (lua_State *L) {
+	size_t l1, l2;
+	const char *s1 = luamem_checkstring(L, 1, &l1);
+	const char *s2 = luamem_checkstring(L, 2, &l2);
+	size_t i, n=(l1<l2 ? l1 : l2);
+	for (i=0; (i<n) && (s1[i]==s2[i]); ++i);
+	if (i<n) {
+		lua_pushinteger(L, i+1);
+		lua_pushboolean(L, s1[i]<s2[i]);
+	} else if (l1==l2) {
+		lua_pushnil(L);
+		lua_pushboolean(L, 0);
+	} else {
+		lua_pushinteger(L, i+1);
+		lua_pushboolean(L, l1<l2);
+	}
+	return 2;
+}
+
 static int mem_get (lua_State *L) {
-	size_t lb;
-	const char *s = luamem_checkmemory(L, 1, &lb);
-	return luamem_str2byte(L, s, lb);
+	size_t len;
+	const char *s = luamem_checkmemory(L, 1, &len);
+	return luamem_str2byte(L, s, len);
 }
 
 static int mem_set (lua_State *L) {
-	size_t lb;
+	size_t len;
 	int n = lua_gettop(L)-2;  /* number of bytes */
-	char *p = luamem_checkmemory(L, 1, &lb);
-	lua_Integer i = luamem_posrelat(luaL_checkinteger(L, 2), lb);
-	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)lb, 2, "index out of bounds");
-	lb = 1+lb-i;
-	luamem_code2char(L, 3, p+i-1, n<lb ? n : lb);
+	char *p = luamem_checkmemory(L, 1, &len);
+	lua_Integer i = luamem_posrelat(luaL_checkinteger(L, 2), len);
+	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 2, "index out of bounds");
+	len = 1+len-i;
+	luamem_code2char(L, 3, p+i-1, n<len ? n : len);
 	return 0;
 }
 
 static int mem_fill (lua_State *L) {
-	size_t lb, sl;
-	char *p = luamem_checkmemory(L, 1, &lb);
-	lua_Integer i = luamem_posrelat(luaL_optinteger(L, 3, 1), lb);
-	lua_Integer j = luamem_posrelat(luaL_optinteger(L, 4, -1), lb);
+	size_t len, sl;
+	char *p = luamem_checkmemory(L, 1, &len);
+	lua_Integer i = luamem_posrelat(luaL_optinteger(L, 3, 1), len);
+	lua_Integer j = luamem_posrelat(luaL_optinteger(L, 4, -1), len);
 	char c;
 	const char *s = NULL;
 	lua_Integer os;
@@ -86,8 +131,8 @@ static int mem_fill (lua_State *L) {
 		s = luamem_checkstring(L, 2, &sl);
 		os = luamem_posrelat(luaL_optinteger(L, 5, 1), sl);
 	}
-	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)lb, 3, "index out of bounds");
-	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)lb, 4, "index out of bounds");
+	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 3, "index out of bounds");
+	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 4, "index out of bounds");
 	if (os < 1) os = 1;
 	if (i <= j && os <= (lua_Integer)sl) {
 		int n = (int)(j - i + 1);
@@ -224,7 +269,7 @@ static int getnum (const char **fmt, int df) {
 		int a = 0;
 		do {
 			a = a*10 + (*((*fmt)++) - '0');
-		} while (digit(**fmt) && a <= ((int)LUABUF_MAXSIZE - 9)/10);
+		} while (digit(**fmt) && a <= ((int)LUAMEM_MAXALLOC - 9)/10);
 		return a;
 	}
 }
@@ -337,9 +382,10 @@ static char *getbytes (char **b, size_t *i, size_t lb, size_t sz) {
 
 static int packfailed (lua_State *L, size_t i, size_t arg) {
 	lua_pushboolean(L, 0);
+	lua_replace(L, arg-2);
 	lua_pushinteger(L, i+1);
-	lua_pushinteger(L, arg-3);
-	return 3;
+	lua_replace(L, arg-1);
+	return 3+lua_gettop(L)-arg;
 }
 
 static int packchar (char **b, size_t *i, size_t lb, const char c) {
@@ -408,7 +454,7 @@ static void copywithendian (volatile char *dest, volatile const char *src,
 static int mem_pack (lua_State *L) {
 	Header h;
 	size_t lb;
-	char *buff = luamem_checkmemory(L, 1, &lb);
+	char *mem = luamem_checkmemory(L, 1, &lb);
 	size_t i = (size_t)luamem_posrelat(luaL_checkinteger(L, 2), lb) - 1;
 	const char *fmt = luaL_checkstring(L, 3);  /* format string */
 	int arg = 3;  /* current argument to pack */
@@ -418,7 +464,7 @@ static int mem_pack (lua_State *L) {
 		int size, ntoalign;
 		KOption opt = getdetails(&h, i, &fmt, &size, &ntoalign);
 		arg++;
-		if (!getbytes(&buff, &i, lb, ntoalign))  /* skip alignment */
+		if (!getbytes(&mem, &i, lb, ntoalign))  /* skip alignment */
 			return packfailed(L, i, arg);
 		switch (opt) {
 			case Kint: {  /* signed integers */
@@ -427,7 +473,7 @@ static int mem_pack (lua_State *L) {
 					lua_Integer lim = (lua_Integer)1 << ((size * NB) - 1);
 					luaL_argcheck(L, -lim <= n && n < lim, arg, "integer overflow");
 				}
-				if (!packint(&buff, &i, lb, (lua_Unsigned)n, h.islittle, size, (n < 0)))
+				if (!packint(&mem, &i, lb, (lua_Unsigned)n, h.islittle, size, (n < 0)))
 					return packfailed(L, i, arg);
 				break;
 			}
@@ -436,14 +482,14 @@ static int mem_pack (lua_State *L) {
 				if (size < SZINT)  /* need overflow check? */
 					luaL_argcheck(L, (lua_Unsigned)n < ((lua_Unsigned)1 << (size * NB)),
 					                 arg, "unsigned overflow");
-				if (!packint(&buff, &i, lb, (lua_Unsigned)n, h.islittle, size, 0))
+				if (!packint(&mem, &i, lb, (lua_Unsigned)n, h.islittle, size, 0))
 					return packfailed(L, i, arg);
 				break;
 			}
 			case Kfloat: {  /* floating-point options */
 				volatile Ftypes u;
 				lua_Number n;
-				char *data = getbytes(&buff, &i, lb, size);
+				char *data = getbytes(&mem, &i, lb, size);
 				if (!data) return packfailed(L, i, arg);
 				n = luaL_checknumber(L, arg);  /* get argument */
 				if (size == sizeof(u.f)) u.f = (float)n;  /* copy it into 'u' */
@@ -457,7 +503,7 @@ static int mem_pack (lua_State *L) {
 				size_t len;
 				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, len == (size_t)size, arg, "wrong length");
-				if (!packstream(&buff, &i, lb, s, size))
+				if (!packstream(&mem, &i, lb, s, size))
 					return packfailed(L, i, arg);
 				break;
 			}
@@ -467,8 +513,8 @@ static int mem_pack (lua_State *L) {
 				luaL_argcheck(L, size >= (int)sizeof(size_t) ||
 				                 len < ((size_t)1 << (size * NB)),
 				                 arg, "string length does not fit in given size");
-				if (!packint(&buff, &i, lb, (lua_Unsigned)len, h.islittle, size, 0) ||  /* pack length */
-				    !packstream(&buff, &i, lb, s, len))
+				if (!packint(&mem, &i, lb, (lua_Unsigned)len, h.islittle, size, 0) ||  /* pack length */
+				    !packstream(&mem, &i, lb, s, len))
 					return packfailed(L, i, arg);
 				break;
 			}
@@ -476,12 +522,12 @@ static int mem_pack (lua_State *L) {
 				size_t len;
 				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, strlen(s) == len, arg, "string contains zeros");
-				if (!packstream(&buff, &i, lb, s, len) || !packchar(&buff, &i, lb, '\0'))
+				if (!packstream(&mem, &i, lb, s, len) || !packchar(&mem, &i, lb, '\0'))
 					return packfailed(L, i, arg);
 				break;
 			}
 			case Kpadding: {
-				if (!getbytes(&buff, &i, lb, 1))
+				if (!getbytes(&mem, &i, lb, 1))
 					return packfailed(L, i, arg);
 				/* go through */
 			}
@@ -492,8 +538,7 @@ static int mem_pack (lua_State *L) {
 	}
 	lua_pushboolean(L, 1);
 	lua_pushinteger(L, i+1);
-	lua_pushinteger(L, arg-2);
-	return 3;
+	return 2;
 }
 
 
@@ -600,9 +645,12 @@ static int mem_unpack (lua_State *L) {
 
 static const luaL_Reg lib[] = {
 	{"create", mem_create},
+	{"type", mem_type},
+	{"resize", mem_resize},
+	{"len", mem_len},
+	{"diff", mem_diff},
 	{"fill", mem_fill},
 	{"get", mem_get},
-	{"len", mem_len},
 	{"set", mem_set},
 	{"pack", mem_pack},
 	{"unpack", mem_unpack},
@@ -616,7 +664,8 @@ static const luaL_Reg meta[] = {
 };
 
 
-static void setupmeta (lua_State *L) {
+static void setupmetatable (lua_State *L, const char *name) {
+	luaL_newmetatable(L, name);
 	luaL_setfuncs(L, meta, 0);  /* add metamethods to new metatable */
 	lua_pushvalue(L, -2);  /* push library */
 	lua_setfield(L, -2, "__index");  /* metatable.__index = library */
@@ -626,9 +675,7 @@ static void setupmeta (lua_State *L) {
 
 LUAMEMMOD_API int luaopen_memory (lua_State *L) {
 	luaL_newlib(L, lib);
-	luaL_newmetatable(L, LUAMEM_ALLOC);
-	setupmeta(L);
-	luamem_pushrefmt(L);
-	setupmeta(L);
+	setupmetatable(L, LUAMEM_ALLOC);
+	setupmetatable(L, LUAMEM_REF);
 	return 1;
 }
