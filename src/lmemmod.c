@@ -9,6 +9,7 @@
 static int mem_create (lua_State *L) {
 	if (lua_gettop(L) == 0) {
 		luamem_newref(L);
+		luamem_setref(L, 1, NULL, 0, luamem_free);
 	} else {
 		char *p;
 		size_t len;
@@ -40,11 +41,11 @@ static int mem_create (lua_State *L) {
 }
 
 static int mem_resize (lua_State *L) {
-	char *mem;
 	size_t len;
+	luamem_Unref unref;
+	char *mem = luamem_tomemoryx(L, 1, &len, &unref, NULL);
 	size_t size = luamem_checklenarg(L, 2);
-	luaL_argcheck(L, luamem_isref(L, 1), 1, "resizable memory expected");
-	mem = luamem_tomemory(L, 1, &len);
+	luaL_argcheck(L, unref == luamem_free, 1, "resizable memory expected");
 	if (len != size) {
 		mem = luamem_realloc(L, mem, len, size);
 		if (!mem) luaL_error(L, "out of memory");
@@ -55,11 +56,17 @@ static int mem_resize (lua_State *L) {
 }
 
 static int mem_type (lua_State *L) {
-	int isref;
-	char *mem = luamem_tomemoryx(L, 1, NULL, &isref);
-	if (!mem) lua_pushnil(L);
-	else if (isref) lua_pushliteral(L, "fixed");
-	else lua_pushliteral(L, "resizable");
+	luamem_Unref unref;
+	int type;
+	luamem_tomemoryx(L, 1, NULL, &unref, &type);
+	if (type == LUAMEM_TALLOC) {
+		lua_pushliteral(L, "fixed");
+	} else if (type == LUAMEM_TREF) {
+		if (unref == luamem_free) lua_pushliteral(L, "resizable");
+		else lua_pushliteral(L, "other");
+	} else {
+		lua_pushnil(L);
+	}
 	return 1;
 }
 
@@ -73,7 +80,7 @@ static int mem_len (lua_State *L) {
 static int mem_tostring (lua_State *L) {
 	size_t len;
 	const char *s = luamem_checkmemory(L, 1, &len);
-	if (len>0) lua_pushlstring(L, s, len);
+	if (len > 0) lua_pushlstring(L, s, len);
 	else lua_pushliteral(L, "");
 	return 1;
 }
