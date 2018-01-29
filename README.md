@@ -13,7 +13,6 @@ TODO
 
 - Add the C API to the manual.
 - Finish adaptation of `string.pack` tests to test `memory.pack`.
-- Add the tests for resizable memory.
 - Add support for bitwise operations on the memory contents.
 
 Documentation

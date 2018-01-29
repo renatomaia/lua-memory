@@ -44,7 +44,8 @@ LUAMEMLIB_API void luamem_newref (lua_State *L) {
 	lua_setmetatable(L, -2);
 }
 
-LUAMEMLIB_API int luamem_setref (lua_State *L, int idx, char *mem, size_t len, luamem_Unref unref) {
+LUAMEMLIB_API int luamem_setref (lua_State *L, int idx, 
+                                 char *mem, size_t len, luamem_Unref unref) {
 	luamem_Ref *ref = luaL_testudata(L, 1, LUAMEM_REF);
 	if (ref) {
 		if (mem != ref->mem) unref(L, ref);
@@ -57,35 +58,36 @@ LUAMEMLIB_API int luamem_setref (lua_State *L, int idx, char *mem, size_t len, l
 }
 
 
-LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx, size_t *len, int *isref) {
+LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
+                                      size_t *len, luamem_Unref *unref,
+                                      int *type) {
+	char *mem = NULL;
 	void *p = lua_touserdata(L, idx);
-	if (isref) *isref = 0;
+	if (len) *len = 0;
+	if (unref) *unref = NULL;
+	if (type) *type = LUAMEM_TNONE;
 	if (p) {  /* value is a userdata? */
 		if (lua_getmetatable(L, idx)) {  /* does it have a metatable? */
-			char *mem;
 			luaL_getmetatable(L, LUAMEM_ALLOC);  /* get allocated memory metatable */
 			if (lua_rawequal(L, -1, -2)) {  /* is the same? */
-				if (len) *len = lua_rawlen(L, idx);
 				mem = (char *)p;
+				if (len) *len = lua_rawlen(L, idx);
+				if (type) *type = LUAMEM_TALLOC;
 			} else {
 				lua_pop(L, 1);  /* remove allocated memory metatable */
 				luaL_getmetatable(L, LUAMEM_REF);  /* get referenced memory metatable */
 				if (lua_rawequal(L, -1, -2)) {
 					luamem_Ref *ref = (luamem_Ref *)p;
-					if (isref) *isref = 1;
-					if (len) *len = ref->len;
 					mem = ref->mem;
-				} else {
-					if (len) *len = 0;
-					mem = NULL;
+					if (len) *len = ref->len;
+					if (unref) *unref = ref->unref;
+					if (type) *type = LUAMEM_TREF;
 				}
 			}
 			lua_pop(L, 2);  /* remove both metatables */
-			return mem;
 		}
 	}
-	if (len) *len = 0;
-	return NULL;
+	return mem;
 }
 
 LUAMEMLIB_API char *luamem_checkmemory (lua_State *L, int idx, size_t *len) {

@@ -89,7 +89,7 @@ Sets the values of all bytes in memory `m` in the range from position `i` until 
 If, after the translation of negative indices, `o` is less than 1, it is corrected to 1.
 After the translation of negative indices, `i` and `j` must refer to valid positions of `m`.
 
-If `i` is greater and `j` (empty range), or `o` refers to a position beyond the size of `m` (no contents) this function has no effect.
+If `i` is greater and `j` (empty range), or `o` refers to a position beyond the size of `s` (no contents) this function has no effect.
 Otherwise, the specified contents from `s` (from `o`) are copied repeatedly until they fill all bytes in the specified range of `m` (from `i` to `j`).
 
 If `s` is a number then all bytes in the specified range of `m` are set with the value of `s`.
