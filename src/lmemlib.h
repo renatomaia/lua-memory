@@ -63,10 +63,6 @@ LUAMEMLIB_API size_t (luamem_checklenarg) (lua_State *L, int idx);
 #define LUAMEM_MAXALLOC  \
 	(sizeof(size_t) < sizeof(int) ? (~(size_t)0) : (size_t)(INT_MAX))
 
-LUAMEMLIB_API lua_Integer (luamem_posrelat) (lua_Integer pos, size_t len);
-LUAMEMLIB_API int (luamem_str2byte) (lua_State *L, const char *s, size_t l);
-LUAMEMLIB_API void (luamem_code2char) (lua_State *L, int idx, char *p, int n);
-
 
 /*
 ** {======================================================
