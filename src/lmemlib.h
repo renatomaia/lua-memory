@@ -74,22 +74,9 @@ LUAMEMLIB_API void (luamem_code2char) (lua_State *L, int idx, char *p, int n);
 ** =======================================================
 */
 
-#define luamem_Buffer	luaL_Buffer
-#define luamem_addchar	luaL_addchar
-#define luamem_addsize	luaL_addsize
-#define luamem_prepbuffsize	luaL_prepbuffsize
-#define luamem_prepbuffer	luaL_prepbuffer
-#define luamem_addlstring	luaL_addlstring
-#define luamem_addstring	luaL_addstring
-#define luamem_pushresult	luaL_pushresult
-#define luamem_pushresultsize	luaL_pushresultsize
-#define luamem_buffinit	luaL_buffinit
-#define luamem_buffinitsize	luaL_buffinitsize
-
-
-LUAMEMLIB_API void (luamem_addvalue) (luamem_Buffer *B);
-LUAMEMLIB_API void (luamem_pushresbuf) (luamem_Buffer *B);
-LUAMEMLIB_API void (luamem_pushresbufsize) (luamem_Buffer *B, size_t sz);
+LUAMEMLIB_API void (luamem_addvalue) (luaL_Buffer *B);
+LUAMEMLIB_API void (luamem_pushresbuf) (luaL_Buffer *B);
+LUAMEMLIB_API void (luamem_pushresbufsize) (luaL_Buffer *B, size_t sz);
 
 /* }====================================================== */
 

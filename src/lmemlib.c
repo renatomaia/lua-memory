@@ -102,8 +102,9 @@ LUAMEMLIB_API int luamem_isstring (lua_State *L, int idx) {
 }
 
 LUAMEMLIB_API const char *luamem_tostring (lua_State *L, int idx, size_t *len) {
-	if (lua_isstring(L, idx)) return lua_tolstring(L, idx, len);
-	return luamem_tomemory(L, idx, len);
+	const char *s = luamem_tomemory(L, idx, len);
+	if (s) return s;
+	return lua_tolstring(L, idx, len);
 }
 
 LUAMEMLIB_API const char *luamem_checkstring (lua_State *L, int idx, size_t *len) {
@@ -121,11 +122,9 @@ LUAMEMLIB_API void *luamem_realloc(lua_State *L, void *mem, size_t old,
 	return alloc(userdata, mem, old, new);
 }
 
-LUAMEMLIB_API void luamem_free(lua_State *L, void *memo, size_t size)
+LUAMEMLIB_API void luamem_free(lua_State *L, void *mem, size_t size)
 {
-	void *userdata;
-	lua_Alloc alloc = lua_getallocf(L, &userdata);
-	alloc(userdata, memo, size, 0);
+	luamem_realloc(L, mem, size, 0);
 }
 
 LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx)
@@ -213,7 +212,7 @@ LUAMEMLIB_API void luamem_code2char (lua_State *L, int idx, char *p, int n) {
 #define buffonstack(B)	((B)->b != (B)->initb)
 
 
-LUAMEMLIB_API void luamem_pushresbuf (luamem_Buffer *B) {
+LUAMEMLIB_API void luamem_pushresult (luaL_Buffer *B) {
 	lua_State *L = B->L;
 	if (!buffonstack(B) || B->n < B->size) {
 		char *p = (char *)luamem_newalloc(L, B->n * sizeof(char));
@@ -225,19 +224,19 @@ LUAMEMLIB_API void luamem_pushresbuf (luamem_Buffer *B) {
 }
 
 
-LUAMEMLIB_API void luamem_pushresbufsize (luamem_Buffer *B, size_t sz) {
+LUAMEMLIB_API void luamem_pushresultsize (luaL_Buffer *B, size_t sz) {
 	luaL_addsize(B, sz);
-	luamem_pushresbuf(B);
+	luamem_pushresult(B);
 }
 
 
-LUAMEMLIB_API void luamem_addvalue (luamem_Buffer *B) {
+LUAMEMLIB_API void luamem_addvalue (luaL_Buffer *B) {
 	lua_State *L = B->L;
 	size_t l;
 	const char *s = luamem_tostring(L, -1, &l);
 	if (buffonstack(B))
 		lua_insert(L, -2);  /* put value below buffer */
-	luamem_addlstring(B, s, l);
+	luaL_addlstring(B, s, l);
 	lua_remove(L, (buffonstack(B)) ? -2 : -1);  /* remove value */
 }
 
