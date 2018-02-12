@@ -13,6 +13,30 @@ Index
 - [`memory.unpack`](#memoryunpack-m-i-fmt)
 - [`tostring`](#tostring-m)
 
+- [`LUAMEM_ALLOC`](#luamem_newalloc)
+- [`LUAMEM_REF`](#luamem_newref)
+- [`LUAMEM_TALLOC`](#luamem_tomemoryx)
+- [`LUAMEM_TNONE`](#luamem_tomemoryx)
+- [`LUAMEM_TREF`](#luamem_tomemoryx)
+- [`luamem_Unref`](#luamem_Unref)
+- [`luamem_addvalue`](#luamem_addvalue)
+- [`luamem_checklenarg`](#luamem_checklenarg)
+- [`luamem_checkmemory`](#luamem_checkmemory)
+- [`luamem_checkstring`](#luamem_checkstring)
+- [`luamem_free`](#luamem_free)
+- [`luamem_ismemory`](#luamem_ismemory)
+- [`luamem_isref`](#luamem_isref)
+- [`luamem_isstring`](#luamem_isstring)
+- [`luamem_newalloc`](#luamem_newalloc)
+- [`luamem_newref`](#luamem_newref)
+- [`luamem_pushresbuf`](#luamem_pushresbuf)
+- [`luamem_pushresbufsize`](#luamem_pushresbufsize)
+- [`luamem_realloc`](#luamem_realloc)
+- [`luamem_setref`](#luamem_setref)
+- [`luamem_tomemory`](#luamem_tomemory)
+- [`luamem_tomemoryx`](#luamem_tomemoryx)
+- [`luamem_tostring`](#luamem_tostring)
+
 Contents
 ========
 
@@ -53,7 +77,8 @@ Any extra bytes have value zero.
 
 ### `memory.type (m)`
 
-Returns `"fixed"` if `m` is a fixed-size memory, or `"resizable"` if it is a resizable memory, or `nil` otherwise.
+Returns `"fixed"` if `m` is a fixed-size memory, or `"resizable"` if it is a resizable memory, or `other` if it is an external memory created using the C API.
+Otherwise it returns `nil`.
 
 ### `memory.len (m)`
 
@@ -108,3 +133,154 @@ After the read values, this function also returns the index of the first unread 
 ### `tostring (m)`
 
 Returns a string with the contents of memory `m`.
+
+C Library API
+-------------
+
+This section describes the C API provided as a separate library to create and manipulate memory areas from C.
+There are two distinct types of memory areas in the C API:
+
+- __allocated__: points to a constant block address with fixed size, which is automatically released when the memory is garbage collected (see [`luamem_newalloc`](#luamem_newalloc)).
+- __referenced__: points to a memory area with block address and size provided by the application, which can provide a unrefering function to be used to free the memory area when it is not pointed by the Lua memory object anymore (see [`luamem_newref`](#luamem_newref)).
+
+### `luamem_newalloc`
+
+`char *luamem_newalloc (lua_State *L, size_t len);`
+
+Creates and pushes onto the stack a new allocated memory with the given size, and returns its block address.
+
+Allocated memory areas uses metatable created with name given by constant `LUAMEM_ALLOC` (see [`luaL_newmetatable`](http://www.lua.org/manual/5.3/manual.html#luaL_newmetatable)).
+
+### `luamem_Unref`
+
+`typedef void (*luamem_Unref) (lua_State *L, void *mem, size_t len);`
+
+Type for memory unrefering functions.
+
+These functions are called whenever a referenced memory ceases to pointo to block address `mem` which have size of `len` bytes. (see [`luamem_setref`](#luamem_setref)).
+
+### `luamem_newref`
+
+`void luamem_newref (lua_State *L);`
+
+Creates and pushes onto the stack a new reference memory pointing to NULL, with length zero, and no unrefering function (see [`luamem_Unref`](#luamem_Unref)).
+
+Referenced memory areas uses metatable created with name given by constant `LUAMEM_REF` (see [`luaL_newmetatable`](http://www.lua.org/manual/5.3/manual.html#luaL_newmetatable)).
+
+### `luamem_setref`
+
+`int luamem_setref (lua_State *L, int idx, char *mem, size_t len, luamem_Unref unref);`
+
+Defines the block address (`mem`), size (`len`), and unrefering function (`unref`) of the referenced memory at index `idx`, and returns 1.
+If `idx` does not contain a referenced memory it returns 0;
+
+If `unref` is not `NULL`, it will be called when the memory ceases to point to this block address, either by being garbage collected or if it is updated to point to another block address (by a future call of `luamem_setref`).
+
+If `mem` points to the same block address currently pointed by referenced memory at index `idx` then the unrefering function previously registered is not invoked.
+Therefore, to avoid the call of the current unrefering function of memory at index `idx` you can do:
+
+```C
+size_t len;
+char *mem = luamem_tomemory(L, idx, &len);
+luamem_setref(L, idx, mem, len, NULL);  /* only update `unref` to NULL */
+```
+
+### `luamem_isref`
+
+`int luamem_isref(lua_State *L, int idx);`
+
+Returns 1 if the value at the given index is a referenced memory, and 0 otherwise. 
+
+### `luamem_ismemory`
+
+`int luamem_ismemory (lua_State *L, int idx);`
+
+Returns 1 if the value at the given index is a memory (allocated or referenced), and 0 otherwise. 
+
+### `luamem_tomemory`
+
+`void *luamem_tomemory (lua_State *L, int idx, size_t *len);`
+
+Equivalent to `luamem_tomemoryx(L, idx, len, NULL, NULL)`.
+
+### `luamem_tomemoryx`
+
+`char *luamem_tomemoryx (lua_State *L, int idx, size_t *len, luamem_Unref *unref, int *type);`
+
+Return the block address of memory at the given index, or `NULL` if the value is not a memory.
+
+If `len` is not `NULL`, it sets `*len` with the memory size.
+If `unref` is not `NULL`, it sets `*unref` with the unrefering function if the value is a referenced memory, or `NULL` otherwise.
+If `type` is not `NULL`, it sets `*type` with `LUAMEM_TREF` if the value is  referenced memory, or `LUAMEM_TALLOC` in case of an allocated memory, or `LUAMEM_TNONE` otherwise.
+
+Because Lua has garbage collection, there is no guarantee that the pointer returned by `luamem_tomemory` will be valid after the corresponding Lua value is removed from the stack.
+
+### `luamem_checkmemory`
+
+`char *luamem_checkmemory (lua_State *L, int arg, size_t *len);`
+
+Checks whether the function argument `arg` is a memory (allocated or referenced) and returns a pointer to its contents;
+if `len` is not `NULL` fills `*len` with the memory's length.
+
+### `luamem_isstring`
+
+`int luamem_isstring (lua_State *L, int idx);`
+
+Returns 1 if the value at the given index is a string or memory, and 0 otherwise.
+
+### `luamem_tostring`
+
+`const char *luamem_tostring (lua_State *L, int idx, size_t *len);`
+
+If the value at the given index is a memory it behaves like [`luamem_tomemory`](#luamem_tomemory), but retuning a pointer to constant bytes.
+Otherwise, it is equivalent to [`lua_tolstring`](http://www.lua.org/manual/5.3/manual.html#lua_tolstring).
+
+__Note__: Unlike Lua strings, memory areas are not followed by a null byte (`'\0'`).
+
+### `luamem_checkstring`
+
+`const char *luamem_checkstring (lua_State *L, int arg, size_t *len);`
+
+Checks whether the function argument `arg` is a string or memory and returns a pointer to its contents;
+if `len` is not `NULL` fills `*len` with the contents' length.
+
+This function might use `lua_tolstring` to get its result, so all conversions and caveats of that function apply here.
+
+### `luamem_checklenarg`
+
+`size_t luamem_checklenarg (lua_State *L, int arg);`
+
+Checks whether the function argument `arg` is an integer (or can be converted to an integer) of a valid memory size and returns this integer cast to a `size_t`.
+
+### `luamem_realloc`
+
+`void *luamem_realloc (lua_State *L, void *mem, size_t old, size_t new);`
+
+Reallocates memory pointed by `mem` of size `old` with new size `new` using the allocation function registered by the Lua state (see [`lua_getallocf`](http://www.lua.org/manual/5.3/manual.html#lua_getallocf)).
+Returns the reallocated memory.
+
+### `luamem_free`
+
+`void luamem_free (lua_State *L, void *mem, size_t sz);`
+
+Equivalent to `luamem_realloc(L, mem, sz, 0)`.
+
+__Note__: Any referenced memory which uses this function as the unrefering function is considered a resizable memory by the `memory` module.
+
+### `luamem_addvalue`
+
+`void luamem_addvalue (luaL_Buffer *B);`
+
+Similar to [`luaL_addvalue`](http://www.lua.org/manual/5.3/manual.html#luaL_addvalue), but if the value on top of the stack is a memory, it adds its contents to the buffer without converting it to a Lua string.
+
+### `luamem_pushresult`
+
+`void luamem_pushresult (luaL_Buffer *B);`
+
+Similar to [`luamem_pushresult`](http://www.lua.org/manual/5.3/manual.html#luaL_pushresult), but leaves a memory with the buffer contents on the top of the stack instead of a string.
+
+### `luamem_pushresultfsize`
+
+`void luamem_pushresbufsize (luaL_Buffer *B, size_t sz);`
+
+Equivalent to the sequence [`luaL_addsize`](http://www.lua.org/manual/5.3/manual.html#luaL_addsize), [`luamem_pushresult`](#luamem_pushresult).
