@@ -7,6 +7,8 @@
 #include <string.h>
 
 
+static int typeerror (lua_State *L, int arg, const char *tname);
+
 
 LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
 	char *mem = lua_newuserdata(L, l * sizeof(char));
@@ -90,9 +92,9 @@ LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
 	return mem;
 }
 
-LUAMEMLIB_API char *luamem_checkmemory (lua_State *L, int idx, size_t *len) {
-	char *mem = luamem_tomemory(L, idx, len);
-	if (!mem) luaL_argerror(L, idx, "memory expected");
+LUAMEMLIB_API char *luamem_checkmemory (lua_State *L, int arg, size_t *len) {
+	char *mem = luamem_tomemory(L, arg, len);
+	if (!mem) typeerror(L, arg, "memory");
 	return mem;
 }
 
@@ -107,28 +109,27 @@ LUAMEMLIB_API const char *luamem_tostring (lua_State *L, int idx, size_t *len) {
 	return lua_tolstring(L, idx, len);
 }
 
-LUAMEMLIB_API const char *luamem_checkstring (lua_State *L, int idx, size_t *len) {
-	const char *s = luamem_tostring(L, idx, len);
-	if (!s) luaL_argerror(L, idx, "string expected");
+LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
+                                              int arg,
+                                              size_t *len) {
+	const char *s = luamem_tostring(L, arg, len);
+	if (!s) typeerror(L, arg, "string or memory");
 	return s;
 }
 
 
 LUAMEMLIB_API void *luamem_realloc(lua_State *L, void *mem, size_t old,
-                                                            size_t new)
-{
+                                                            size_t new) {
 	void *userdata;
 	lua_Alloc alloc = lua_getallocf(L, &userdata);
 	return alloc(userdata, mem, old, new);
 }
 
-LUAMEMLIB_API void luamem_free(lua_State *L, void *mem, size_t size)
-{
+LUAMEMLIB_API void luamem_free(lua_State *L, void *mem, size_t size) {
 	luamem_realloc(L, mem, size, 0);
 }
 
-LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx)
-{
+LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx) {
 	lua_Integer sz = luaL_checkinteger(L, idx);
 	luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUAMEM_MAXALLOC,
 	                 idx, "invalid size");
@@ -160,6 +161,19 @@ LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx)
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
+static int typeerror (lua_State *L, int arg, const char *tname) {
+	const char *msg;
+	const char *typearg;  /* name for the type of the actual argument */
+	if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
+		typearg = lua_tostring(L, -1);  /* use the given type name */
+	else if (lua_type(L, arg) == LUA_TLIGHTUSERDATA)
+		typearg = "light userdata";  /* special name for messages */
+	else
+		typearg = luaL_typename(L, arg);  /* standard name */
+	msg = lua_pushfstring(L, "%s expected, got %s", tname, typearg);
+	return luaL_argerror(L, arg, msg);
+}
 
 /*
 ** {======================================================
