@@ -113,7 +113,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		check(8192)
 	end
 
-	do print(kind, "memory.create(memory|string [, i [, j]])")
+	do print(kind, "memory.create(memory|string [, i [, j]]), memory.tostring(memory, [, i [, j]])")
 		local function check(expected, data, ...)
 			local b = memory.create(data, ...)
 			assert(memory.diff(b, expected) == nil)
@@ -121,6 +121,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 			local b = memory.create(memory.create(data), ...)
 			assert(memory.diff(b, expected) == nil)
 			checkmodifiable(b, #expected)
+			assert(memory.tostring(memory.create(data), ...) == expected)
 		end
 		check(""         , "")
 		check(""         , "", 1)
@@ -141,6 +142,34 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		check("123456789", "123456789", mini, maxi)
 		check(""         , "123456789", mini, mini)
 		check("234"      , "\000123456789",3,5)
+	end
+
+	do print(kind, "memory:find(string [, i [, j [, o]]])")
+		for _, C1 in ipairs({tostring, memory.create}) do
+			for _, C2 in ipairs({tostring, memory.create}) do
+				local m = C1"1234567890123456789"
+				local e = C1""
+				local s = C2"345"
+				assert(memory.find(m, s) == 3)
+				local a, b = memory.find(m, s)
+				assert(a == 3)
+				assert(b == 5, b)
+				assert(memory.find(m, s, 3) == 3)
+				assert(memory.find(m, s, 4) == 13)
+				assert(memory.find(m, C2"346", 4) == nil)
+				assert(memory.find(m, s, -9) == 13)
+				assert(memory.find(m, s, 5, 1) == nil)
+				assert(memory.find(m, C2"\0", 5) == nil)
+				assert(memory.find(m, s, 1, -1, 4) == nil)
+				assert(memory.find(m, s, 20, 30) == nil)
+				assert(memory.find(m, s, -30, -20) == nil)
+				assert(memory.find(e, s, 1, -1, 4) == nil)
+				assert(memory.find(e, C2"") == nil)
+				assert(memory.find(e, C2"", 1) == nil)
+				assert(memory.find(e, C2"", 2) == nil)
+				assert(memory.find(e, C2"aaa", 1) == nil)
+			end
+		end
 	end
 
 	do print(kind, "memory:fill(string [, i [, j]])")

@@ -7,6 +7,8 @@
 static lua_Integer posrelat (lua_Integer pos, size_t len);
 static int str2byte (lua_State *L, const char *s, size_t l);
 static void code2char (lua_State *L, int idx, char *p, int n);
+static const char *lmemfind (const char *s1, size_t l1,
+                             const char *s2, size_t l2);
 
 static int mem_create (lua_State *L) {
 	if (lua_gettop(L) == 0) {
@@ -82,8 +84,16 @@ static int mem_len (lua_State *L) {
 
 static int mem_tostring (lua_State *L) {
 	size_t len;
-	const char *s = luamem_checkmemory(L, 1, &len);
-	if (len > 0) lua_pushlstring(L, s, len);
+	const char *s = luamem_checkstring(L, 1, &len);
+	lua_Integer posi = posrelat(luaL_optinteger(L, 2, 1), len);
+	lua_Integer pose = posrelat(luaL_optinteger(L, 3, -1), len);
+	int n;
+	if (posi < 1) posi = 1;
+	if (pose > (lua_Integer)len) pose = len;
+	n = (int)(pose - posi + 1);
+	if (posi + n <= pose)  /* arithmetic overflow? */
+		return luaL_error(L, "string slice too long");
+	if (n > 0) lua_pushlstring(L, s + posi -1, n);
 	else lua_pushliteral(L, "");
 	return 1;
 }
@@ -121,6 +131,30 @@ static int mem_set (lua_State *L) {
 	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 2, "index out of bounds");
 	len = 1+len-i;
 	code2char(L, 3, p+i-1, n<len ? n : len);
+	return 0;
+}
+
+static int mem_find (lua_State *L) {
+	size_t len, sl;
+	const char *p = luamem_checkstring(L, 1, &len);
+	const char *s = luamem_checkstring(L, 2, &sl);
+	lua_Integer i = posrelat(luaL_optinteger(L, 3, 1), len);
+	lua_Integer j = posrelat(luaL_optinteger(L, 4, -1), len);
+	lua_Integer os = posrelat(luaL_optinteger(L, 5, 1), sl);
+	if (os < 1) os = 1;
+	if (i <= j && os <= (lua_Integer)sl) {
+		int n = (int)(j - i + 1);
+		if (i + n <= j)  /* arithmetic overflow? */
+			return luaL_error(L, "string slice too long");
+		--os;
+		sl -= os;
+		s = lmemfind(p + i - 1, (size_t)n, s + os, sl);
+		if (s) {
+			lua_pushinteger(L, (s - p) + 1);
+			lua_pushinteger(L, (s - p) + sl);
+			return 2;
+		}
+	}
 	return 0;
 }
 
@@ -170,11 +204,13 @@ static const luaL_Reg lib[] = {
 	{"resize", mem_resize},
 	{"len", mem_len},
 	{"diff", mem_diff},
+	{"find", mem_find},
 	{"fill", mem_fill},
 	{"get", mem_get},
 	{"set", mem_set},
 	{"pack", mem_pack},
 	{"unpack", mem_unpack},
+	{"tostring", mem_tostring},
 	{NULL, NULL}
 };
 
@@ -265,6 +301,26 @@ static void code2char (lua_State *L, int idx, char *p, int n) {
 	}
 }
 
+static const char *lmemfind (const char *s1, size_t l1,
+                             const char *s2, size_t l2) {
+	if (l2 == 0) return s1;  /* empty strings are everywhere */
+	else if (l2 > l1) return NULL;  /* avoids a negative 'l1' */
+	else {
+		const char *init;  /* to search for a '*s2' inside 's1' */
+		l2--;  /* 1st char will be checked by 'memchr' */
+		l1 = l1-l2;  /* 's2' cannot be found after that */
+		while (l1 > 0 && (init = (const char *)memchr(s1, *s2, l1)) != NULL) {
+			init++;   /* 1st char is already checked */
+			if (memcmp(init, s2+1, l2) == 0)
+				return init-1;
+			else {  /* correct 'l1' and 's1' to try again */
+				l1 -= init-s1;
+				s1 = init;
+			}
+		}
+		return NULL;  /* not found */
+	}
+}
 
 /*
 ** {======================================================
