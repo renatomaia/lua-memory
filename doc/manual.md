@@ -9,9 +9,10 @@ Index
 - [`memory.get`](#memoryget-m-i-j-)
 - [`memory.set`](#memoryset-m-i)
 - [`memory.fill`](#memoryfill-m-s-i-j-o-)
+- [`memory.find`](#memoryfind-m-s-i-j-o-)
 - [`memory.pack`](#memorypack-m-i-fmt-v-)
 - [`memory.unpack`](#memoryunpack-m-i-fmt)
-- [`tostring`](#tostring-m)
+- [`memory.tostring`](#memorytostring-m-i-j)
 
 - [`LUAMEM_ALLOC`](#luamem_newalloc)
 - [`LUAMEM_REF`](#luamem_newref)
@@ -48,7 +49,6 @@ A memory can have a fixed size or be resizable.
 When indexing a memory, the first byte is at position 1 (not at 0, as in C).
 Indices are allowed to be negative and are interpreted as indexing backwards, from the end of the memory.
 Thus, the last byte is at position -1, and so on.
-In this manual we will refer to byte in position `i` as `m[i]`.
 
 This library provides all its functions inside the table `memory`.
 It also sets a metatable for the memory where the `__index` field points to the `memory` table.
@@ -57,7 +57,7 @@ For instance, `memory.get(m,i)` can be written as `m:get(i)`, where `m` is a mem
 
 ### `memory.create ([s [, i [, j]]])`
 
-Creates a new fixed-size memory of `s` bytes with value zero when `s` is a number.
+If `s` is a number, creates a new fixed-size memory of `s` bytes with value zero.
 
 If `s` is a string or a memory, then the new memory will have the same size and contents of `s` from position `i` until position `j`;
 `i` and `j` can be negative.
@@ -89,6 +89,19 @@ Returns the size of memory `m`.
 Returns the index of the first byte which values differ in `m1` and `m2`, or `nil` if both contain the same bytes.
 It also returns the result of a `m1 < m2` as if they were strings.
 
+Both `m1` and `m2` shall be memory or string.
+
+### `memory.find (m, s [, i [, j [, o]]])`
+
+Searches in memory or string `m` from position `i` until `j` for the contents of the memory or string `s` from position `o` of `s`;
+`i`, `j` and `o` can be negative.
+
+If, after the translation of negative indices, `o` is less than 1, it is corrected to 1.
+After the translation of negative indices, `i` and `j` must refer to valid positions of `m`.
+
+If `i` is greater and `j` (empty range), or `o` refers to a position beyond the size of `s` (no contents), or the bytes from `s` are not found in `m` this function returns `nil`.
+Otherwise, it return the position of the first byte found in `m`.
+
 ### `memory.get (m [, i [, j]])`
 
 Returns the values of bytes in memory `m` from `i` until `j`;
@@ -108,17 +121,23 @@ If there are more arguments than bytes in the range from `i` to the end of memor
 
 ### `memory.fill (m, s [, i [, j [, o]]])`
 
-Sets the values of all bytes in memory `m` in the range from position `i` until `j` with the contents from position `o` of the string or memory `s`;
+Sets the values of all bytes in memory `m` from position `i` until `j` with the contents of the memory or string `s` from position `o` of `s`;
 `i`, `j` and `o` can be negative.
 
-If, after the translation of negative indices, `o` is less than 1, it is corrected to 1.
-After the translation of negative indices, `i` and `j` must refer to valid positions of `m`.
+These indices are corrected following the same rules of function [`memory.find`](#memoryfind-m-s-i-j-o-).
 
 If `i` is greater and `j` (empty range), or `o` refers to a position beyond the size of `s` (no contents) this function has no effect.
 Otherwise, the specified contents from `s` (from `o`) are copied repeatedly until they fill all bytes in the specified range of `m` (from `i` to `j`).
 
 If `s` is a number then all bytes in the specified range of `m` are set with the value of `s`.
 The value of `o` is ignored in this case.
+
+### `memory.tostring (m [, i [, j]])`
+
+Returns a string with the contents of memory or string `m` from `i` until `j`;
+`i` and `j` can be negative.
+The default value for `i` is 1;
+the default value for `j` is `i`.
 
 ### `memory.pack (m, i, fmt, v...)`
 
@@ -129,10 +148,6 @@ Returns a boolean indicating whether all values were packed in memory `m`, follo
 
 Returns the values encoded in position `i` of memory or string `m`, according to the format `fmt`, as in function [memory.pack](#memorypack-m-i-fmt-v-).
 After the read values, this function also returns the index of the first unread byte in `m`. 
-
-### `tostring (m)`
-
-Returns a string with the contents of memory `m`.
 
 C Library API
 -------------
@@ -226,7 +241,7 @@ if `len` is not `NULL` fills `*len` with the memory's length.
 
 `int luamem_isstring (lua_State *L, int idx);`
 
-Returns 1 if the value at the given index is a string or memory, and 0 otherwise.
+Returns 1 if the value at the given index is a memory or string, and 0 otherwise.
 
 ### `luamem_tostring`
 
@@ -241,7 +256,7 @@ __Note__: Unlike Lua strings, memory areas are not followed by a null byte (`'\0
 
 `const char *luamem_checkstring (lua_State *L, int arg, size_t *len);`
 
-Checks whether the function argument `arg` is a string or memory and returns a pointer to its contents;
+Checks whether the function argument `arg` is a memory or string and returns a pointer to its contents;
 if `len` is not `NULL` fills `*len` with the contents' length.
 
 This function might use `lua_tolstring` to get its result, so all conversions and caveats of that function apply here.
