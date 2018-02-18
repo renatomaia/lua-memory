@@ -12,8 +12,8 @@ Index
 [`memory.set`](#memoryset-m-i-)              | [`luamem_ismemory`](#luamem_ismemory)       |                                                    
 [`memory.fill`](#memoryfill-m-s--i--j--o)    | [`luamem_isref`](#luamem_isref)             | [`LUAMEM_ALLOC`](#luamem_newalloc)                 
 [`memory.find`](#memoryfind-m-s--i--j--o)    | [`luamem_isstring`](#luamem_isstring)       | [`LUAMEM_REF`](#luamem_newref)                     
-[`memory.pack`](#memorypack-m-i-fmt-v)       | [`luamem_newalloc`](#luamem_newalloc)       | [`LUAMEM_TALLOC`](#luamem_tomemoryx)               
-[`memory.unpack`](#memoryunpack-m-i-fmt)     | [`luamem_newref`](#luamem_newref)           | [`LUAMEM_TNONE`](#luamem_tomemoryx)                
+[`memory.pack`](#memorypack-m-fmt-i-v)       | [`luamem_newalloc`](#luamem_newalloc)       | [`LUAMEM_TALLOC`](#luamem_tomemoryx)               
+[`memory.unpack`](#memoryunpack-m-fmt--i)    | [`luamem_newref`](#luamem_newref)           | [`LUAMEM_TNONE`](#luamem_tomemoryx)                
 [`memory.tostring`](#memorytostring-m--i--j) | [`luamem_pushresult`](#luamem_pushresult)   | [`LUAMEM_TREF`](#luamem_tomemoryx)                 
 
 Contents
@@ -117,14 +117,15 @@ Returns a string with the contents of memory or string `m` from `i` until `j`;
 The default value for `i` is 1;
 the default value for `j` is `i`.
 
-### `memory.pack (m, i, fmt, v...)`
+### `memory.pack (m, fmt, i, v...)`
 
 Serializes in memory `m`, from position `i`, the values `v...` in binary form according to the format `fmt` (see the [Lua manual](http://www.lua.org/manual/5.3/manual.html#6.4.2)).
 Returns a boolean indicating whether all values were packed in memory `m`, followed by the index of the first unwritten byte in `m` and all the values `v...` that were not packed.
 
-### `memory.unpack (m, i, fmt)`
+### `memory.unpack (m, fmt [, i])`
 
-Returns the values encoded in position `i` of memory or string `m`, according to the format `fmt`, as in function [memory.pack](#memorypack-m-i-fmt-v-).
+Returns the values encoded in position `i` of memory or string `m`, according to the format `fmt`, as in function [memory.pack](#memorypack-m-i-fmt-v-);
+The default value for `i` is 1.
 After the read values, this function also returns the index of the first unread byte in `m`. 
 
 C Library API
