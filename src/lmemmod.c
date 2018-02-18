@@ -598,10 +598,10 @@ static int mem_pack (lua_State *L) {
 	Header h;
 	size_t lb;
 	char *mem = luamem_checkmemory(L, 1, &lb);
-	size_t i = (size_t)posrelat(luaL_checkinteger(L, 2), lb) - 1;
-	const char *fmt = luaL_checkstring(L, 3);  /* format string */
+	const char *fmt = luaL_checkstring(L, 2);  /* format string */
+	size_t i = (size_t)posrelat(luaL_checkinteger(L, 3), lb) - 1;
 	int arg = 3;  /* current argument to pack */
-	luaL_argcheck(L, 0 <= i && i <= (lua_Integer)lb-1, 2, "index out of bounds");
+	luaL_argcheck(L, 0 <= i && i <= (lua_Integer)lb-1, 3, "index out of bounds");
 	initheader(L, &h);
 	while (*fmt != '\0') {
 		int size, ntoalign;
@@ -723,10 +723,10 @@ static int mem_unpack (lua_State *L) {
 	Header h;
 	size_t ld;
 	const char *data = luamem_checkmemory(L, 1, &ld);
-	size_t pos = (size_t)posrelat(luaL_checkinteger(L, 2), ld) - 1;
-	const char *fmt = luaL_checkstring(L, 3);
+	const char *fmt = luaL_checkstring(L, 2);
+	size_t pos = (size_t)posrelat(luaL_optinteger(L, 3, 1), ld) - 1;
 	int n = 0;  /* number of results */
-	luaL_argcheck(L, pos <= ld, 2, "initial position out of bounds");
+	luaL_argcheck(L, pos <= ld, 3, "initial position out of bounds");
 	initheader(L, &h);
 	while (*fmt != '\0') {
 		int size, ntoalign;
