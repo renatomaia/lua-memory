@@ -603,6 +603,7 @@ static int mem_pack (lua_State *L) {
 	int arg = 3;  /* current argument to pack */
 	luaL_argcheck(L, 0 <= i && i <= (lua_Integer)lb-1, 3, "index out of bounds");
 	initheader(L, &h);
+	mem += i;
 	while (*fmt != '\0') {
 		int size, ntoalign;
 		KOption opt = getdetails(&h, i, &fmt, &size, &ntoalign);
