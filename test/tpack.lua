@@ -109,21 +109,23 @@ end
 
 print("minimum behavior for integer formats")
 do
-	local function testpack(fmt, val)
-		local sz = packsize(fmt)
+	local function testpack(fmt, val, pos)
+		local sz = packsize(fmt)+pos-1
 		local b = memory.create(sz)
-		assertpack(sz, 1, pack(b, fmt, 1, val))
-		assertunpack(sz, {val}, unpack(b, fmt))
+		assertpack(sz, 1, pack(b, fmt, pos, val))
+		assertunpack(sz, {val}, unpack(b, fmt, pos))
 	end
-	testpack("B", 0xff)
-	testpack("b", 0x7f)
-	testpack("b", -0x80)
-	testpack("H", 0xffff)
-	testpack("h", 0x7fff)
-	testpack("h", -0x8000)
-	testpack("L", 0xffffffff)
-	testpack("l", 0x7fffffff)
-	testpack("l", -0x80000000)
+	for i=1, 10 do
+		testpack("B", 0xff, i)
+		testpack("b", 0x7f, i)
+		testpack("b", -0x80, i)
+		testpack("H", 0xffff, i)
+		testpack("h", 0x7fff, i)
+		testpack("h", -0x8000, i)
+		testpack("L", 0xffffffff, i)
+		testpack("l", 0x7fffffff, i)
+		testpack("l", -0x80000000, i)
+	end
 end
 
 for i = 1, NB do
