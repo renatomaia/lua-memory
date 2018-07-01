@@ -34,12 +34,11 @@ API_O=	lmemlib.o
 
 MEM_M=	memory.so
 API_S=	libluamemlib.so
-LIB_S=	libluamemory.so
 LIB_A=	libluamemory.a
 
 ALL_O= $(MEM_O) $(API_O)
 ALL_A= $(LIB_A)
-ALL_S= $(LIB_S) $(API_S)
+ALL_S= $(API_S)
 ALL_M= $(MEM_M)
 ALL_T= $(ALL_A) $(ALL_S) $(ALL_M)
 
@@ -59,9 +58,6 @@ $(API_S): $(API_O)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(MEM_M): $(MEM_O) $(API_S)
-	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
-
-$(LIB_S): $(LIB_O) $(API_S) $(ALL_M)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(LIB_A): $(ALL_O)
