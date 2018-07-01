@@ -12,7 +12,7 @@ local unpackmem = memory.unpack
 local Pointer = {}
 
 function Pointer:__index(key)
-	local field = self.struct[key]
+	local field = self.struct.fields[key]
 	if field ~= nil then
 		local value = field.value
 		if value == nil then
@@ -35,7 +35,7 @@ function Pointer:__index(key)
 end
 
 function Pointer:__newindex(key, value)
-	local field = self.struct[key]
+	local field = self.struct.fields[key]
 	if field ~= nil then
 		if field.value ~= nil then
 			assert(field.value == value, "invalid value")
@@ -45,13 +45,7 @@ function Pointer:__newindex(key, value)
 				local current = unpackmem(self.buffer, field.format, field.pos)
 				local shift, mask = field.shift, field.mask
 				assert(value <= mask, "value is too large")
-
-io.write(key," = ",string.format("%02x", current)," -> ")
-
 				current = (current&~(mask<<shift))|(value<<shift)
-
-print(string.format("%02x", current))
-
 				packmem(self.buffer, field.format, field.pos, current)
 			else
 				-- TODO
@@ -87,6 +81,19 @@ local function layoutfield(field, byteidx, bitoff)
 	local bitpart = bitused%8
 	local bytes = bitused//8
 
+	local endian = field.endian
+	if bitoff > 0 or bitpart > 0 then
+		assert(endian == nil or endian == "little", "bigendian bits not supported")
+		endian = "<"
+	elseif endian == "little" then
+		endian = "<"
+	elseif endian == "big" then
+		endian = ">"
+	else
+		assert(endian == nil or endian == "native", "illegal endianess")
+		endian = "="
+	end
+
 	field = {
 		pos = byteidx,
 		bitoff = bitoff,
@@ -103,19 +110,20 @@ local function layoutfield(field, byteidx, bitoff)
 	end
 
 	field.bytes = bytes
-	field.format = "I"..bytes
+	field.format = endian.."I"..bytes
 
 	return field, byteidx, bitoff
 end
 
-function layoutstruct(fields, byteidx, bitoff) -- local defined above
+function layoutstruct(spec, byteidx, bitoff) -- local defined above
 	local struct = {
 		pos = byteidx,
 		bitoff = bitoff,
 		bits = 0,
 		bytes = 0,
 	}
-	for _, field in ipairs(fields) do
+	local fields = {}
+	for _, field in ipairs(spec) do
 		local key = field.key
 		field, byteidx, bitoff = layoutfield(field, byteidx, bitoff)
 
@@ -125,9 +133,10 @@ function layoutstruct(fields, byteidx, bitoff) -- local defined above
 		if key ~= nil then
 			assert(field.bits <= LuaIntBits, "value is too big")
 			assert(field.bytes <= 8)
-			struct[key] = field
+			fields[key] = field
 		end
 	end
+	struct.fields = fields
 	return struct, byteidx, bitoff
 end
 
