@@ -26,6 +26,9 @@ function Pointer:__index(key)
 				if mask ~= ~0 then
 					value = value&mask
 				end
+				if field.type == "boolean" then
+					value = value ~= 0
+				end
 			else
 				-- TODO
 			end
@@ -42,6 +45,9 @@ function Pointer:__newindex(key, value)
 		else
 			local format = field.format
 			if format ~= nil then
+				if field.type == "boolean" then
+					value = value and 1 or 0
+				end
 				local current = unpackmem(self.buffer, field.format, field.pos)
 				local shift, mask = field.shift, field.mask
 				assert(value <= mask, "value is too large")
@@ -101,6 +107,7 @@ local function layoutfield(field, byteidx, bitoff)
 		mask = (~0>>(LuaIntBits-bits)),
 		shift = bitoff,
 		value = field.value,
+		type = field.type or "number",
 	}
 
 	byteidx = byteidx+bytes

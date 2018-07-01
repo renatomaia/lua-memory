@@ -197,3 +197,34 @@ do
 	p.bytes = 0xaaf00f; assertbits(m, "010 01010|01010101|00001111|11110000|101 010 10")
 	p.morebits = 0x5  ; assertbits(m, "010 01010|01010101|00001111|11110000|101 101 10")
 end
+
+do
+	local s = layout.newstruct{
+		{ key = "bit", bits = 1, type = "boolean" },
+		{ key = "bits", bits = 4, type = "boolean" },
+		{ key = "byte", bytes = 1, type = "boolean", endian = "native" },
+		{ key = "little", bytes = 2, type = "boolean", endian = "little" },
+		{ key = "big", bytes = 2, type = "boolean", endian = "big" },
+	}
+	local p = layout.newpointer(s)
+	local m = memory.create(6)
+	layout.setpointer(p, m)
+
+	memory.fill(m, 0xff)
+	assert(p.bit == true)
+	assert(p.bits == true)
+	assert(p.byte == true)
+	assert(p.little == true)
+	assert(p.big == true)
+	memory.fill(m, 0)
+	assert(p.bit == false)
+	assert(p.bits == false)
+	assert(p.byte == false)
+	assert(p.little == false)
+	assert(p.big == false)
+	p.bit = true   ; assert(p.bit == true)   ; assertbytes(m, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00)
+	p.bits = true  ; assert(p.bits == true)  ; assertbytes(m, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00)
+	p.byte = true  ; assert(p.byte == true)  ; assertbytes(m, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00)
+	p.little = true; assert(p.little == true); assertbytes(m, 0x03, 0x01, 0x01, 0x00, 0x00, 0x00)
+	p.big = true   ; assert(p.big == true)   ; assertbytes(m, 0x03, 0x01, 0x01, 0x00, 0x00, 0x01)
+end
