@@ -1,0 +1,27 @@
+local ipv = {
+	[4] = layout.struct{
+		{ key = "version" , bits = 4  },
+		{ key = "ihl"     , bits = 4  },
+		{ key = "tos"     , bits = 6  },
+		{ key = "ecn"     , bits = 2  },
+		{ key = "tot_len" , bits = 16 },
+		{ key = "id"      , bits = 16 },
+		{ key = "flags"   , bits = 3  },
+		{ key = "frag_off", bits = 13 },
+		{ key = "ttl"     , bits = 8  },
+		{ key = "protocol", bits = 8  },
+		{ key = "check"   , bits = 16 },
+		{ key = "src"     , bits = 32, type = "string" },
+		{ key = "dst"     , bits = 32, type = "string" },
+	},
+	[6] = layout.struct{
+		{ key = "version" , bits = 4  },
+		{ key = "tc"      , bits = 8  },
+		{ key = "fl"      , bits = 20 },
+		{ key = "tot_len" , bits = 16 },
+		{ key = "nh"      , bits = 8  },
+		{ key = "hl"      , bits = 8  },
+		{ key = "src"     , bits = 128, type = "string" },
+		{ key = "dst"     , bits = 128, type = "string" },
+	},
+}
