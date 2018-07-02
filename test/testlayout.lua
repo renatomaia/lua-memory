@@ -4,14 +4,7 @@ local layout = require "memory.layout"
 local function asserterr(msg, f, ...)
 	local ok, res = pcall(f, ...)
 	assert(ok == false)
-	assert(string.find(res, msg, 1, true) ~= nil)
-end
-
-for _, bits in ipairs{3, 9} do
-	asserterr("bigendian bits not supported",
-		layout.newstruct, {{ key = "unsupported", bits = bits, endian = "big" }})
-	asserterr("bigendian bits not supported",
-		layout.newstruct, {{ key = "unsupported", bits = bits, endian = "native" }})
+	assert(string.find(res, msg, 1, true) ~= nil, res)
 end
 
 local function assertbits(m, bits)
@@ -41,15 +34,14 @@ local function assertbytes(m, ...)
 	assert(memory.len(m) == count)
 end
 
-for _, endian in ipairs{"little", false} do
-	endian = endian or nil
+do
 	local s = layout.newstruct{
-		{ key = "one", bits = 1, endian = endian },
-		{ key = "two", bits = 2, endian = endian },
-		{ key = "three", bits = 3, endian = endian },
-		{ key = "four", bits = 4, endian = endian },
-		{ key = "eight", bits = 8, endian = endian },
-		{ key = "six", bits = 6, endian = endian },
+		{ key = "one", bits = 1 },
+		{ key = "two", bits = 2 },
+		{ key = "three", bits = 3 },
+		{ key = "four", bits = 4 },
+		{ key = "eight", bits = 8 },
+		{ key = "six", bits = 6 },
 	}
 	local p = layout.newpointer(s)
 
@@ -87,12 +79,12 @@ for _, endian in ipairs{"little", false} do
 	p.eight = 0xAA         ; assertbits(m, "0 10 101 01|01 010101|01 101010")
 	p.six = 0x2A           ; assertbits(m, "0 10 101 01|01 010101|01 010101")
 
-	asserterr("value is too large", function () p.one = 2 end)
-	asserterr("value is too large", function () p.two = 4 end)
-	asserterr("value is too large", function () p.three = 8 end)
-	asserterr("value is too large", function () p.four = 16 end)
-	asserterr("value is too large", function () p.eight = 256 end)
-	asserterr("value is too large", function () p.six = 64 end)
+	asserterr("unsigned overflow", function () p.one = 2 end)
+	asserterr("unsigned overflow", function () p.two = 4 end)
+	asserterr("unsigned overflow", function () p.three = 8 end)
+	asserterr("unsigned overflow", function () p.four = 16 end)
+	asserterr("unsigned overflow", function () p.eight = 256 end)
+	asserterr("unsigned overflow", function () p.six = 64 end)
 	assertbits(m, "0 10 101 01|01 010101|01 010101")
 end
 
@@ -114,9 +106,9 @@ do
 	p.two = 0xaaaa     ; assertbytes(m, 0x55, 0xaa, 0xaa, 0xff, 0xff, 0xff);
 	p.three = 0x333333 ; assertbytes(m, 0x55, 0xaa, 0xaa, 0x33, 0x33, 0x33);
 
-	asserterr("value is too large", function () p.one = 1<<8 end)
-	asserterr("value is too large", function () p.two = 1<<16 end)
-	asserterr("value is too large", function () p.three = 1<<24 end)
+	asserterr("unsigned overflow", function () p.one = 1<<8 end)
+	asserterr("unsigned overflow", function () p.two = 1<<16 end)
+	asserterr("unsigned overflow", function () p.three = 1<<24 end)
 end
 
 do
@@ -227,4 +219,48 @@ do
 	p.byte = true  ; assert(p.byte == true)  ; assertbytes(m, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00)
 	p.little = true; assert(p.little == true); assertbytes(m, 0x03, 0x01, 0x01, 0x00, 0x00, 0x00)
 	p.big = true   ; assert(p.big == true)   ; assertbytes(m, 0x03, 0x01, 0x01, 0x00, 0x00, 0x01)
+end
+
+do
+	for _, bits in ipairs{1, 2, 3, 4, 7, 9, 15, 17} do
+		asserterr("unsupported type",
+			layout.newstruct, {{ key = "unsupported", bits = bits, type = "string" }})
+		for _, size in ipairs{8, 16, 32, 64} do
+			asserterr("unsupported type",
+				layout.newstruct, {
+					{ bits = bits },
+					{ key = "unsupported", bits = size, type = "string" },
+				})
+		end
+	end
+
+	local s = layout.newstruct{
+		{ key = "one", bytes = 1, type = "string" },
+		{ key = "two", bytes = 2, type = "string" },
+		{ key = "eight", bytes = 8, type = "string" },
+		{ key = "nine", bytes = 9, type = "string" },
+	}
+	local p = layout.newpointer(s)
+	local m = memory.create(20)
+	layout.setpointer(p, m)
+
+	memory.fill(m, 0)
+	assert(p.one == string.rep("\0", 1))
+	assert(p.two == string.rep("\0", 2))
+	assert(p.eight == string.rep("\0", 8))
+	assert(p.nine == string.rep("\0", 9))
+
+	local function assertmem(f, i, j)
+		local v = string.rep("\x55", 1+j-i)
+		p[f] = v
+		assert(p[f] == v)
+		for k = 1, i-1 do assert(memory.get(m, k) == 0) end
+		for k = i, j do assert(memory.get(m, k) == 0x55) end
+		for k = j+1, memory.len(m) do assert(memory.get(m, k) == 0) end
+		memory.fill(m, 0)
+	end
+	assertmem("one", 1, 1)
+	assertmem("two", 2, 3)
+	assertmem("eight", 4, 11)
+	assertmem("nine", 12, 20)
 end
