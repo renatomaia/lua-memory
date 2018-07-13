@@ -5,6 +5,7 @@ local rawset = _G.rawset
 local setmetatable = _G.setmetatable
 
 local memory = require "memory"
+local copymem = memory.fill
 local newmem = memory.create
 local packmem = memory.pack
 local unpackmem = memory.unpack
@@ -14,14 +15,14 @@ local Pointer = {}
 function Pointer:__index(key)
 	local field = self.struct.fields[key]
 	if field ~= nil then
-		return field.read(self)
+		return field.read(self.parent)
 	end
 end
 
 function Pointer:__newindex(key, value)
 	local field = self.struct.fields[key]
 	if field ~= nil then
-		field.write(self, value)
+		field.write(self.parent, value)
 	end
 end
 
@@ -122,37 +123,63 @@ function layout.boolean(...)
 		return read(...) ~= 0
 	end
 	local write = spec.write
-	function spec.write(buffer, value, ...)
-		return write(buffer, value and 1 or 0, ...)
+	function spec.write(self, value, ...)
+		return write(self, value and 1 or 0, ...)
 	end
 	return spec, byteidx, bitoff
 end
 
-local function layoutstruct(spec, byteidx, bitoff)
-	assert(type(spec) == "table" and #spec > 0, "invalid type")
-	local struct = {
+local function layoutstruct(fields, byteidx, bitoff)
+	assert(type(fields) == "table" and #fields > 0, "invalid type")
+	local spec = {
 		pos = byteidx,
 		bitoff = bitoff,
 		bits = 0,
 		bytes = 0,
 	}
-	local fields = {}
-	for _, field in ipairs(spec) do
+
+	local specs = {}
+	for _, field in ipairs(fields) do
 		local key = field.key
 		local type = field.type
 		if type == nil then type = "number" end
-		local build = layout[type] or layoutstruct
+		local build = assert(layout[type], "unsupported type")
 		field, byteidx, bitoff = build(field, byteidx, bitoff)
 
-		struct.bytes = field.pos-1+field.bytes
-		struct.bits = 8*(byteidx-1)+bitoff
+		spec.bytes = byteidx-spec.pos
+		spec.bits = 8*(spec.bytes)+bitoff-spec.bitoff
 
 		if key ~= nil then
-			fields[key] = field
+			specs[key] = field
 		end
 	end
-	struct.fields = fields
-	return struct, byteidx, bitoff
+	spec.fields = specs
+	return spec, byteidx, bitoff
+end
+
+function layout.struct(field, ...)
+	local spec, byteidx, bitoff = layoutstruct(field, ...)
+	function spec.read(self)
+		local pointer = self[spec]
+		if pointer == nil then
+			pointer = setmetatable({ struct = spec, parent = self }, Pointer)
+			self[spec] = pointer
+		end
+		return pointer
+	end
+	function spec.write(self, value, ...)
+		if getmetatable(value) == Pointer then
+			local src, dst = value.struct, spec
+			assert(src.bitoff == 0 and src.bits%8 == 0
+			   and dst.bitoff == 0 and dst.bits%8 == 0, "unsupported")
+			assert(dst.bytes == src.bytes, "size mismatch")
+			copymem(self.parent.buffer, value.parent.buffer,
+				dst.pos, dst.pos+dst.bytes-1, src.pos)
+		else
+			error("unsupported")
+		end
+	end
+	return spec, byteidx, bitoff
 end
 
 
@@ -164,11 +191,13 @@ end
 
 local empty = newmem(0)
 function module.newpointer(struct)
-	return setmetatable({
+	local pointer = setmetatable({
 		struct = struct,
 		buffer = empty,
 		pos = 1,
 	}, Pointer)
+	rawset(pointer, "parent", pointer)
+	return pointer
 end
 
 function module.setpointer(pointer, buffer, pos)

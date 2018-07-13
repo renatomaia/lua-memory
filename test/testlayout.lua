@@ -2,7 +2,7 @@ local memory = require "memory"
 local layout = require "memory.layout"
 
 local function asserterr(msg, f, ...)
-	local ok, res = pcall(f, ...)
+	local ok, res = xpcall(f, debug.traceback, ...)
 	assert(ok == false)
 	assert(string.find(res, msg, 1, true) ~= nil, res)
 end
@@ -263,4 +263,48 @@ do
 	assertmem("two", 2, 3)
 	assertmem("eight", 4, 11)
 	assertmem("nine", 12, 20)
+end
+
+do
+	local p = layout.newpointer(layout.newstruct{
+		{ bits = 2 },
+		{ key = "half", bits = 4, endian = "little" },
+		{ key = "double", bytes = 2, endian = "big" },
+		{ key = "nested", type = "struct",
+			{ bits = 2 },
+			{ key = "half", bits = 4, endian = "big" },
+			{ key = "double", bytes = 2, endian = "little" },
+			{ key = "single", bytes = 1 },
+		},
+		{ key = "single", bytes = 1 },
+	})
+	local m = memory.create(8)
+	layout.setpointer(p, m)
+
+	memory.set(m, 1, 0x10, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef)
+	assert(p.half == 0x4)
+	assert(p.double == 0x2345)
+	assert(p.nested.half == 0x9)
+	assert(p.nested.double == 0xab89)
+	assert(p.nested.single == 0xcd)
+	assert(p.single == 0xef)
+
+	memory.fill(m, 0x55)
+	p.half = 0xa            ; assertbytes(m, 0x69, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55)
+	p.double = 0xaaf0       ; assertbytes(m, 0x69, 0xaa, 0xf0, 0x55, 0x55, 0x55, 0x55, 0x55)
+	p.nested.half = 0xa     ; assertbytes(m, 0x69, 0xaa, 0xf0, 0x69, 0x55, 0x55, 0x55, 0x55)
+	p.nested.double = 0xaaf0; assertbytes(m, 0x69, 0xaa, 0xf0, 0x69, 0xf0, 0xaa, 0x55, 0x55)
+	p.nested.single = 0xaa  ; assertbytes(m, 0x69, 0xaa, 0xf0, 0x69, 0xf0, 0xaa, 0xaa, 0x55)
+	p.single = 0xaa         ; assertbytes(m, 0x69, 0xaa, 0xf0, 0x69, 0xf0, 0xaa, 0xaa, 0xaa)
+
+	local p2 = layout.newpointer(layout.newstruct{
+		{ bytes = 1 },
+		{ key = "nested", type = "struct", { bytes = 4 } },
+	})
+	local m2 = memory.create(6)
+	layout.setpointer(p2, m2)
+	p2.nested = p.nested    ; assertbytes(m2, 0x00, 0x69, 0xf0, 0xaa, 0xaa, 0x00)
+
+	memory.fill(m2, 0xff)
+	p.nested = p2.nested    ; assertbytes(m, 0x69, 0xaa, 0xf0, 0xff, 0xff, 0xff, 0xff, 0xaa)
 end
