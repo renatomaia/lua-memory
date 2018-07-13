@@ -2,7 +2,7 @@ local memory = require "memory"
 local layout = require "memory.layout"
 
 local function asserterr(msg, f, ...)
-	local ok, res = pcall(f, ...)
+	local ok, res = xpcall(f, debug.traceback, ...)
 	assert(ok == false)
 	assert(string.find(res, msg, 1, true) ~= nil, res)
 end
@@ -263,4 +263,33 @@ do
 	assertmem("two", 2, 3)
 	assertmem("eight", 4, 11)
 	assertmem("nine", 12, 20)
+end
+
+do
+	local s = layout.newstruct{
+		{ bits = 2 },
+		{ key = "half", bits = 4 },
+		{ key = "double", bytes = 2, endian = "big" },
+		{ key = "nested", type = "struct",
+			{ bits = 2 },
+			{ key = "half", bits = 4 },
+			{ key = "double", bytes = 2, endian = "little" },
+			{ key = "single", bytes = 1 },
+		},
+	}
+	local p = layout.newpointer(s)
+	local m = memory.create(7)
+	layout.setpointer(p, m)
+
+	memory.fill(m, 0x55)    ; assertbits(m, "10 1010 10|10101010|10101010|10 1010 10|10101010|10101010|10101010")
+	assert(p.half == 0x5)
+	assert(p.double == 0x5555)
+	assert(p.nested.half == 0x5)
+	assert(p.nested.double == 0x5555)
+	assert(p.nested.single == 0x55)
+	p.half = 0xa            ; assertbits(m, "10 0101 10|10101010|10101010|10 1010 10|10101010|10101010|10101010")
+	p.double = 0xaaf0       ; assertbits(m, "10 0101 10|01010101|00001111|10 1010 10|10101010|10101010|10101010")
+	p.nested.half = 0x5     ; assertbits(m, "10 0101 10|01010101|00001111|10 0101 10|10101010|10101010|10101010")
+	p.nested.double = 0xaaf0; assertbits(m, "10 0101 10|01010101|00001111|10 0101 10|00001111|01010101|10101010")
+	p.nested.single = 0xaa  ; assertbits(m, "10 0101 10|01010101|00001111|10 0101 10|00001111|01010101|01010101")
 end
