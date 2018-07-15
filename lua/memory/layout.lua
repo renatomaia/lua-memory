@@ -96,7 +96,6 @@ function layout.number(field, ...)
 		local mask = (~0>>(LuaIntBits-bits))
 		local shift = bitoff
 		if bitpart > 0 then
-			bitoff = bitpart
 			spec.bytes = bytes+1
 		end
 		local format = "<I"..spec.bytes
@@ -113,7 +112,7 @@ function layout.number(field, ...)
 		end
 	end
 
-	return spec, byteidx+bytes, bitoff
+	return spec, byteidx+bytes, bitpart
 end
 
 function layout.boolean(...)
