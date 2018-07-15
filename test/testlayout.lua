@@ -7,198 +7,242 @@ local function asserterr(msg, f, ...)
 	assert(string.find(res, msg, 1, true) ~= nil, res)
 end
 
-local function assertbits(m, bits)
-	local index = 0
-	local count = 0
-	local value = 0
-	for char in string.gmatch(bits, "[01]") do
-		if char == "1" then
-			value = value+(1<<count)
-		end
-		count = count+1
-		if count == 8 then
-			index = index+1
-			assert(memory.get(m, index) == value)
-			value = 0
-			count = 0
-		end
-	end
-	assert(memory.len(m) == index)
-end
-
 local function assertbytes(m, ...)
 	local count = select("#", ...)
 	for i = 1, count do
-		assert(memory.get(m, i) == select(i, ...))
+		assert(memory.get(m, i) == select(i, ...),
+			string.format("%d: %02x ~= %02x", i, memory.get(m, i), select(i, ...)))
 	end
 	assert(memory.len(m) == count)
 end
 
-do
-	local s = layout.newstruct{
-		{ key = "one", bits = 1 },
-		{ key = "two", bits = 2 },
-		{ key = "three", bits = 3 },
-		{ key = "four", bits = 4 },
-		{ key = "eight", bits = 8 },
-		{ key = "six", bits = 6 },
-	}
-	local p = layout.newpointer(s)
-
-	asserterr("data too short", function () local _ = p.one end)
-	asserterr("data too short", function () p.one = 0 end)
-
-	local m = memory.create(3)
-	layout.setpointer(p, m)
-
-	memory.fill(m, 0xFF)
-	assert(p.one == 1)     ; assertbits(m, "1 11 111 11|11 111111|11 111111")
-	assert(p.two == 3)     ; assertbits(m, "1 11 111 11|11 111111|11 111111")
-	assert(p.three == 7)   ; assertbits(m, "1 11 111 11|11 111111|11 111111")
-	assert(p.four == 0xF)  ; assertbits(m, "1 11 111 11|11 111111|11 111111")
-	assert(p.eight == 0xFF); assertbits(m, "1 11 111 11|11 111111|11 111111")
-	assert(p.six == 0x3F)  ; assertbits(m, "1 11 111 11|11 111111|11 111111")
-	p.one = 0              ; assertbits(m, "0 11 111 11|11 111111|11 111111")
-	p.two = 0              ; assertbits(m, "0 00 111 11|11 111111|11 111111")
-	p.three = 0            ; assertbits(m, "0 00 000 11|11 111111|11 111111")
-	p.four = 0             ; assertbits(m, "0 00 000 00|00 111111|11 111111")
-	p.eight = 0            ; assertbits(m, "0 00 000 00|00 000000|00 111111")
-	p.six = 0              ; assertbits(m, "0 00 000 00|00 000000|00 000000")
-
-	memory.fill(m, 0x55)
-	assert(p.one == 1)     ; assertbits(m, "1 01 010 10|10 101010|10 101010")
-	assert(p.two == 2)     ; assertbits(m, "1 01 010 10|10 101010|10 101010")
-	assert(p.three == 2)   ; assertbits(m, "1 01 010 10|10 101010|10 101010")
-	assert(p.four == 0x5)  ; assertbits(m, "1 01 010 10|10 101010|10 101010")
-	assert(p.eight == 0x55); assertbits(m, "1 01 010 10|10 101010|10 101010")
-	assert(p.six == 0x15)  ; assertbits(m, "1 01 010 10|10 101010|10 101010")
-	p.one = 0              ; assertbits(m, "0 01 010 10|10 101010|10 101010")
-	p.two = 1              ; assertbits(m, "0 10 010 10|10 101010|10 101010")
-	p.three = 5            ; assertbits(m, "0 10 101 10|10 101010|10 101010")
-	p.four = 0xA           ; assertbits(m, "0 10 101 01|01 101010|10 101010")
-	p.eight = 0xAA         ; assertbits(m, "0 10 101 01|01 010101|01 101010")
-	p.six = 0x2A           ; assertbits(m, "0 10 101 01|01 010101|01 010101")
-
-	asserterr("unsigned overflow", function () p.one = 2 end)
-	asserterr("unsigned overflow", function () p.two = 4 end)
-	asserterr("unsigned overflow", function () p.three = 8 end)
-	asserterr("unsigned overflow", function () p.four = 16 end)
-	asserterr("unsigned overflow", function () p.eight = 256 end)
-	asserterr("unsigned overflow", function () p.six = 64 end)
-	assertbits(m, "0 10 101 01|01 010101|01 010101")
+local native = string.unpack("B", string.pack("I2", 1)) == 0 and "big" or "little"
+local function testfields(spec)
+	for _, endian in ipairs{"big", "little", "native", false} do
+		for _, field in ipairs(spec.struct) do
+			field.endian = endian or nil
+		end
+		local p = layout.newpointer(layout.newstruct(spec.struct))
+		for i, field in ipairs(spec.struct) do
+			if field.key ~= nil then
+				asserterr("out of bounds", function () local _ = p[field.key] end)
+				asserterr("out of bounds", function () p[field.key] = 0 end)
+			end
+		end
+		local m = memory.create(spec.length)
+		layout.setpointer(p, m)
+		for _, field in ipairs(spec.struct) do
+			p[field.key] = spec.values[field.key]
+		end
+		assertbytes(m, table.unpack(spec[endian] or spec[native]))
+		for _, field in ipairs(spec.struct) do
+			if field.key ~= nil then
+				asserterr("unsigned overflow", function ()
+					p[field.key] = 1<<(field.bits or field.bytes*8)
+				end)
+			end
+			assert(p[field.key] == spec.values[field.key])
+		end
+		assertbytes(m, table.unpack(spec[endian] or spec[native]))
+	end
 end
 
-do
-	local s = layout.newstruct{
+testfields{
+	length = 8,
+	struct = {
+		{ key = "a", bits = 1 },
+		{ key = "b", bits = 2 },
+		{ key = "c", bits = 3 },
+		{ key = "d", bits = 4 },
+		{ key = "e", bits = 5 },
+		{ key = "f", bits = 6 },
+		{ key = "g", bits = 7 },
+		{ key = "h", bits = 8 },
+		{ key = "i", bits = 12 },
+		{ key = "j", bits = 6 },
+		{ key = "k", bits = 1 },
+		{ key = "l", bits = 2 },
+		{ key = "m", bits = 3 },
+		{ key = "n", bits = 4 },
+	},
+	values = {
+		a = 0x01,  --              1
+		b = 0x01,  --             01
+		c = 0x03,  --            011
+		d = 0x0b,  --           1011
+		e = 0x13,  --         1 0011
+		f = 0x25,  --        10 0101
+		g = 0x45,  --       100 0101
+		h = 0xc9,  --      1100 1001
+		i = 0x821, -- 1000 0010 0001
+		j = 0x25,  --        10 0101
+		k = 0x00,  --              0
+		l = 0x02,  --             10
+		m = 0x04,  --            100
+		n = 0x0d,  --           1101
+	},
+	big    = {
+		      -- abbc ccdd
+		0xae, -- 1010 1110
+		      -- ddee eeef
+		0xe7, -- 1110 0111
+		      -- ffff fggg
+		0x2c, -- 0010 1100
+		      -- gggg hhhh
+		0x5c, -- 0101 1100
+		      -- hhhh iiii
+		0x98, -- 1001 1000
+		      -- iiii iiii
+		0x21, -- 0010 0001
+		      -- jjjj jjkl
+		0x95, -- 1001 0101
+		      -- lmmm nnnn
+		0x4d, -- 0100 1101
+	},
+	little = {
+		      -- ddcc cbba
+		0xdb, -- 1101 1011
+		      -- feee eedd
+		0xce, -- 1100 1110
+		      -- gggf ffff
+		0xb2, -- 1011 0010
+		      -- hhhh gggg
+		0x98, -- 1001 1000
+		      -- iiii hhhh
+		0x1c, -- 0001 1100
+		      -- iiii iiii
+		0x82, -- 1000 0010
+		      -- lkjj jjjj
+		0x25, -- 0010 0101
+		      -- nnnn mmml
+		0xd9, -- 1101 1001
+	},
+}
+
+testfields{
+	length = 8,
+	struct = {
+		{ key = "a", bits = 9 },
+		{ key = "b", bits = 17 },
+		{ key = "c", bits = 25 },
+		{ key = "d", bits = 13 },
+	},
+	values = {
+		a =     0x002, --                     0 0000 0010
+		b =   0x08d15, --           0 1000 1101 0001 0101
+		c = 0x13c4d5e, -- 1 0011 1100 0100 1101 0101 1110
+		d =    0x0def, --                0 1101 1110 1111
+	},
+	big    = {
+		      -- aaaa aaaa
+		0x01, -- 0000 0001
+		      -- abbb bbbb
+		0x23, -- 0010 0011
+		      -- bbbb bbbb
+		0x45, -- 0100 0101
+		      -- bbcc cccc
+		0x67, -- 0110 0111
+		      -- cccc cccc
+		0x89, -- 1000 1001
+		      -- cccc cccc
+		0xab, -- 1010 1011
+		      -- cccd dddd
+		0xcd, -- 1100 1101
+		      -- dddd dddd
+		0xef, -- 1110 1111
+	},
+	little = {
+		      -- aaaa aaaa
+		0x02, -- 0000 0010
+		      -- bbbb bbba
+		0x2a, -- 0010 1010
+		      -- bbbb bbbb
+		0x1a, -- 0001 1010
+		      -- cccc ccbb
+		0x79, -- 0111 1001
+		      -- cccc cccc
+		0x35, -- 0011 0101
+		      -- cccc cccc
+		0xf1, -- 1111 0001
+		      -- dddd dccc
+		0x7c, -- 0111 1100
+		      -- dddd dddd
+		0x6f, -- 0110 1111
+	},
+}
+
+testfields{
+	length = 6,
+	struct = {
 		{ key = "one", bytes = 1 },
 		{ key = "two", bytes = 2 },
 		{ key = "three", bytes = 3 },
-	}
-	local p = layout.newpointer(s)
-	local m = memory.create(6)
-	layout.setpointer(p, m)
+	},
+	values = {
+		one = 0x12,
+		two = 0x3456,
+		three = 0x789abc,
+	},
+	big    = { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc },
+	little = { 0x12, 0x56, 0x34, 0xbc, 0x9a, 0x78 },
+}
 
-	memory.fill(m, 0xff)
-	assert(p.one == 0xff)
-	assert(p.two == 0xffff)
-	assert(p.three == 0xffffff)
-	p.one = 0x55       ; assertbytes(m, 0x55, 0xff, 0xff, 0xff, 0xff, 0xff);
-	p.two = 0xaaaa     ; assertbytes(m, 0x55, 0xaa, 0xaa, 0xff, 0xff, 0xff);
-	p.three = 0x333333 ; assertbytes(m, 0x55, 0xaa, 0xaa, 0x33, 0x33, 0x33);
-
-	asserterr("unsigned overflow", function () p.one = 1<<8 end)
-	asserterr("unsigned overflow", function () p.two = 1<<16 end)
-	asserterr("unsigned overflow", function () p.three = 1<<24 end)
-end
-
-do
-	local endian = "little"
-	local s = layout.newstruct{
-		{ key = "one", bytes = 1, endian = endian },
-		{ key = "two", bytes = 2, endian = endian },
-		{ key = "three", bytes = 3, endian = endian },
-	}
-	local p = layout.newpointer(s)
-	local m = memory.create(6)
-	layout.setpointer(p, m)
-
-	memory.fill(m, 0xff)
-	assert(p.one == 0xff)
-	assert(p.two == 0xffff)
-	assert(p.three == 0xffffff)
-	p.one = 0x21       ; assertbytes(m, 0x21, 0xff, 0xff, 0xff, 0xff, 0xff);
-	p.two = 0x6543     ; assertbytes(m, 0x21, 0x43, 0x65, 0xff, 0xff, 0xff);
-	p.three = 0xcba987 ; assertbytes(m, 0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb);
-end
-
-do
-	local endian = "big"
-	local s = layout.newstruct{
-		{ key = "one", bytes = 1, endian = endian },
-		{ key = "two", bytes = 2, endian = endian },
-		{ key = "three", bytes = 3, endian = endian },
-	}
-	local p = layout.newpointer(s)
-	local m = memory.create(6)
-	layout.setpointer(p, m)
-
-	memory.fill(m, 0xff)
-	assert(p.one == 0xff)
-	assert(p.two == 0xffff)
-	assert(p.three == 0xffffff)
-	p.one = 0x21       ; assertbytes(m, 0x21, 0xff, 0xff, 0xff, 0xff, 0xff);
-	p.two = 0x6543     ; assertbytes(m, 0x21, 0x65, 0x43, 0xff, 0xff, 0xff);
-	p.three = 0xcba987 ; assertbytes(m, 0x21, 0x65, 0x43, 0xcb, 0xa9, 0x87);
-end
-
-do
-	local s = layout.newstruct{
-		{ key = "one", bytes = 1, endian = "native" },
-		{ key = "two", bytes = 2, endian = "little" },
-		{ key = "three", bytes = 3, endian = "big" },
-	}
-	local p = layout.newpointer(s)
-	local m = memory.create(6)
-	layout.setpointer(p, m)
-
-	memory.fill(m, 0xff)
-	assert(p.one == 0xff)
-	assert(p.two == 0xffff)
-	assert(p.three == 0xffffff)
-	p.one = 0x21       ; assertbytes(m, 0x21, 0xff, 0xff, 0xff, 0xff, 0xff);
-	p.two = 0x6543     ; assertbytes(m, 0x21, 0x43, 0x65, 0xff, 0xff, 0xff);
-	p.three = 0xcba987 ; assertbytes(m, 0x21, 0x43, 0x65, 0xcb, 0xa9, 0x87);
-end
-
-do
-	local s = layout.newstruct{
+testfields{
+	length = 5,
+	struct = {
 		{ key = "bits", bits = 3 },
-		{ key = "bytes", bytes = 3, endian = "big" },
+		{ key = "bytes", bytes = 3 },
 		{ bits = 3 },
 		{ key = "morebits", bits = 3 },
-	}
-	local p = layout.newpointer(s)
-	local m = memory.create(5)
+	},
+	values = {
+		bits = 0x2,
+		bytes = 0xaaf00f,
+		morebits = 0x5,
+	},
+	big    = { 0x40, 0xaa, 0xf0, 0x0f, 0x14 },
+	little = { 0x02, 0x0f, 0xf0, 0xaa, 0x28 },
+}
+
+do
+	local p = layout.newpointer(layout.newstruct{
+		{ key = "bigbytes", bytes = 2, endian = "big" },
+		{ key = "littlebytes", bytes = 2, endian = "little" },
+		{ key = "fewbigbits", bits = 3, endian = "big" },
+		{ key = "manybigbits", bits = 13, endian = "big" },
+		{ key = "fewlittlebits", bits = 3, endian = "little" },
+		{ key = "manylittlebits", bits = 13, endian = "little" },
+	})
+	local m = memory.create(8)
 	layout.setpointer(p, m)
 
-	memory.fill(m, 0x55) assertbits(m, "101 01010|10101010|10101010|10101010|101 010 10")
-	assert(p.bits == 0x5)
-	assert(p.bytes == 0x555555)
-	assert(p.morebits == 0x2)
-	p.bits = 0x2      ; assertbits(m, "010 01010|10101010|10101010|10101010|101 010 10")
-	p.bytes = 0xaaf00f; assertbits(m, "010 01010|01010101|00001111|11110000|101 010 10")
-	p.morebits = 0x5  ; assertbits(m, "010 01010|01010101|00001111|11110000|101 101 10")
+	memory.set(m, 1, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef)
+	assert(p.bigbytes == 0x0123)
+	assert(p.littlebytes == 0x6745)
+	assert(p.fewbigbits == 0x4)        --  100
+	assert(p.manybigbits == 0x9ab)     --     0 1001  1010 1011
+	assert(p.fewlittlebits == 0x5)     --       [101]
+	assert(p.manylittlebits == 0x1df9) --..1100 1]   [1110 1111..
+	p.bigbytes = 0xfedc     ; assertbytes(m, 0xfe, 0xdc, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef)
+	p.littlebytes = 0x98ba  ; assertbytes(m, 0xfe, 0xdc, 0xba, 0x98, 0x89, 0xab, 0xcd, 0xef)
+	-- 100|0 1001  1010 1011 --> 011|0 1001  1010 1011
+	p.fewbigbits = 0x3      ; assertbytes(m, 0xfe, 0xdc, 0xba, 0x98, 0x69, 0xab, 0xcd, 0xef)
+	-- 011|0 1001  1010 1011 --> 011|1 0110  0101 0100
+	p.manybigbits = 0x1654  ; assertbytes(m, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0xcd, 0xef)
+	--..1100 1][101]  [1110 1111.. -->  ..1100 1][010]  [1110 1111..
+	p.fewlittlebits = 0x2   ; assertbytes(m, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0xca, 0xef)
+	--..1100 1][010]  [1110 1111.. -->  ..0011 0][010]  [0001 0000..
+	p.manylittlebits = 0x206; assertbytes(m, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10)
 end
 
 do
-	local s = layout.newstruct{
-		{ key = "bit", bits = 1, type = "boolean" },
-		{ key = "bits", bits = 4, type = "boolean" },
+	local p = layout.newpointer(layout.newstruct{
+		{ key = "bit", bits = 1, type = "boolean", endian = "little" },
+		{ key = "bits", bits = 4, type = "boolean", endian = "little" },
 		{ key = "byte", bytes = 1, type = "boolean", endian = "native" },
 		{ key = "little", bytes = 2, type = "boolean", endian = "little" },
 		{ key = "big", bytes = 2, type = "boolean", endian = "big" },
-	}
-	local p = layout.newpointer(s)
+	})
 	local m = memory.create(6)
 	layout.setpointer(p, m)
 
@@ -234,13 +278,12 @@ do
 		end
 	end
 
-	local s = layout.newstruct{
+	local p = layout.newpointer(layout.newstruct{
 		{ key = "one", bytes = 1, type = "string" },
 		{ key = "two", bytes = 2, type = "string" },
 		{ key = "eight", bytes = 8, type = "string" },
 		{ key = "nine", bytes = 9, type = "string" },
-	}
-	local p = layout.newpointer(s)
+	})
 	local m = memory.create(20)
 	layout.setpointer(p, m)
 
@@ -308,3 +351,5 @@ do
 	memory.fill(m2, 0xff)
 	p.nested = p2.nested    ; assertbytes(m, 0x69, 0xaa, 0xf0, 0xff, 0xff, 0xff, 0xff, 0xaa)
 end
+
+print("Success!")
