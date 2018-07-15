@@ -5,9 +5,10 @@ local rawset = _G.rawset
 local setmetatable = _G.setmetatable
 
 local memory = require "memory"
-local newmem = memory.create
-local packmem = memory.pack
-local unpackmem = memory.unpack
+local memnew = memory.create
+local memget = memory.get
+local mempack = memory.pack
+local memunpack = memory.unpack
 
 local Pointer = {}
 
@@ -27,11 +28,21 @@ end
 
 local LuaIntBits = 64
 
-local endianflag = {
-	native = "=",
+local EndianFlag = {
+	native = "",
 	little = "<",
 	big = ">",
 }
+
+local LittleEndian do
+	local bytes = memnew(2)
+	mempack(bytes, "I2", 1, 1)
+	LittleEndian = {
+		[">"] = false,
+		["<"] = true,
+		[""] = memget(bytes, 1) == 1,
+	}
+end
 
 local function calcsizes(field, byteidx, bitoff)
 	local bitpart
@@ -67,10 +78,10 @@ function layout.string(field, ...)
 	assert(bitoff == 0 and bitpart == 0, "unsupported type")
 	local format = "c"..bytes
 	function spec.read(self)
-		return unpackmem(self.buffer, format, byteidx+self.pos-1)
+		return memunpack(self.buffer, format, byteidx+self.pos-1)
 	end
 	function spec.write(self, value)
-		packmem(self.buffer, format, byteidx+self.pos-1, value)
+		mempack(self.buffer, format, byteidx+self.pos-1, value)
 	end
 
 	return spec, byteidx+bytes, bitoff
@@ -80,34 +91,37 @@ function layout.number(field, ...)
 	local spec, byteidx, bitoff, bytes, bits, bitpart = calcsizes(field, ...)
 	assert(bits <= LuaIntBits, "size is too big")
 
+	local endian = field.endian
+	if endian == nil then endian = "native" end
+	endian = assert(EndianFlag[endian], "illegal endianess")
+
 	if bitoff == 0 and bitpart == 0 then
-		local endian = field.endian
-		if endian == nil then endian = "native" end
-		endian = assert(endianflag[endian], "illegal endianess")
 		local format = endian.."I"..bytes
 		function spec.read(self)
-			return unpackmem(self.buffer, format, byteidx+self.pos-1)
+			return memunpack(self.buffer, format, byteidx+self.pos-1)
 		end
 		function spec.write(self, value)
-			packmem(self.buffer, format, byteidx+self.pos-1, value)
+			if not mempack(self.buffer, format, byteidx+self.pos-1, value) then
+				error("out of bounds")
+			end
 		end
 	else
 		local mask = (~0>>(LuaIntBits-bits))
-		local shift = bitoff
+		local shift = LittleEndian[endian] and bitoff or (8-bitpart)%8
 		if bitpart > 0 then
 			spec.bytes = bytes+1
 		end
-		local format = "<I"..spec.bytes
+		local format = endian.."I"..spec.bytes
 		function spec.read(self)
-			return (unpackmem(self.buffer, format, byteidx+self.pos-1)>>shift)&mask
+			return (memunpack(self.buffer, format, byteidx+self.pos-1)>>shift)&mask
 		end
 		function spec.write(self, value)
 			assert(value <= mask, "unsigned overflow")
 			local buffer = self.buffer
 			local pos = byteidx+self.pos-1
-			local current = unpackmem(buffer, format, pos)
+			local current = memunpack(buffer, format, pos)
 			value = (current&~(mask<<shift))|(value<<shift)
-			packmem(buffer, format, pos, value)
+			mempack(buffer, format, pos, value)
 		end
 	end
 
@@ -177,7 +191,7 @@ function module.newstruct(fields)
 	return layoutstruct(fields, 1, 0)
 end
 
-local empty = newmem(0)
+local empty = memnew(0)
 function module.newpointer(struct)
 	local pointer = setmetatable({
 		struct = struct,
