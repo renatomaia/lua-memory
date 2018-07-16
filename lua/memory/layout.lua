@@ -6,6 +6,7 @@ local setmetatable = _G.setmetatable
 
 local memory = require "memory"
 local memnew = memory.create
+local memcopy = memory.fill
 local memget = memory.get
 local mempack = memory.pack
 local memunpack = memory.unpack
@@ -149,6 +150,7 @@ local function layoutstruct(fields, byteidx, bitoff)
 		bits = 0,
 		bytes = 0,
 	}
+
 	local specs = {}
 	for _, field in ipairs(fields) do
 		local key = field.key
@@ -157,8 +159,8 @@ local function layoutstruct(fields, byteidx, bitoff)
 		local build = assert(layout[type], "unsupported type")
 		field, byteidx, bitoff = build(field, byteidx, bitoff)
 
-		spec.bytes = field.pos-1+field.bytes
-		spec.bits = 8*(byteidx-1)+bitoff
+		spec.bytes = byteidx-spec.pos
+		spec.bits = 8*(spec.bytes)+bitoff-spec.bitoff
 
 		if key ~= nil then
 			specs[key] = field
@@ -179,7 +181,16 @@ function layout.struct(field, ...)
 		return pointer
 	end
 	function spec.write(self, value, ...)
-
+		if getmetatable(value) == Pointer then
+			local src, dst = value.struct, spec
+			assert(src.bitoff == 0 and src.bits%8 == 0
+			   and dst.bitoff == 0 and dst.bits%8 == 0, "unsupported")
+			assert(dst.bytes == src.bytes, "size mismatch")
+			memcopy(self.parent.buffer, value.parent.buffer,
+				dst.pos, dst.pos+dst.bytes-1, src.pos)
+		else
+			error("unsupported")
+		end
 	end
 	return spec, byteidx, bitoff
 end

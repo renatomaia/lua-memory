@@ -308,33 +308,48 @@ do
 	assertmem("nine", 12, 20)
 end
 
-while false do
-	local s = layout.newstruct{
+do
+	local p = layout.newpointer(layout.newstruct{
 		{ bits = 2 },
-		{ key = "half", bits = 4 },
+		{ key = "half", bits = 4, endian = "little" },
 		{ key = "double", bytes = 2, endian = "big" },
 		{ key = "nested", type = "struct",
 			{ bits = 2 },
-			{ key = "half", bits = 4 },
+			{ key = "half", bits = 4, endian = "big" },
 			{ key = "double", bytes = 2, endian = "little" },
 			{ key = "single", bytes = 1 },
 		},
-	}
-	local p = layout.newpointer(s)
-	local m = memory.create(7)
+		{ key = "single", bytes = 1 },
+	})
+	local m = memory.create(8)
 	layout.setpointer(p, m)
 
-	memory.fill(m, 0x55)    ; assertbits(m, "10 1010 10|10101010|10101010|10 1010 10|10101010|10101010|10101010")
-	assert(p.half == 0x5)
-	assert(p.double == 0x5555)
-	assert(p.nested.half == 0x5)
-	assert(p.nested.double == 0x5555)
-	assert(p.nested.single == 0x55)
-	p.half = 0xa            ; assertbits(m, "10 0101 10|10101010|10101010|10 1010 10|10101010|10101010|10101010")
-	p.double = 0xaaf0       ; assertbits(m, "10 0101 10|01010101|00001111|10 1010 10|10101010|10101010|10101010")
-	p.nested.half = 0x5     ; assertbits(m, "10 0101 10|01010101|00001111|10 0101 10|10101010|10101010|10101010")
-	p.nested.double = 0xaaf0; assertbits(m, "10 0101 10|01010101|00001111|10 0101 10|00001111|01010101|10101010")
-	p.nested.single = 0xaa  ; assertbits(m, "10 0101 10|01010101|00001111|10 0101 10|00001111|01010101|01010101")
+	memory.set(m, 1, 0x10, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef)
+	assert(p.half == 0x4)
+	assert(p.double == 0x2345)
+	assert(p.nested.half == 0x9)
+	assert(p.nested.double == 0xab89)
+	assert(p.nested.single == 0xcd)
+	assert(p.single == 0xef)
+
+	memory.fill(m, 0x55)
+	p.half = 0xa            ; assertbytes(m, 0x69, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55)
+	p.double = 0xaaf0       ; assertbytes(m, 0x69, 0xaa, 0xf0, 0x55, 0x55, 0x55, 0x55, 0x55)
+	p.nested.half = 0xa     ; assertbytes(m, 0x69, 0xaa, 0xf0, 0x69, 0x55, 0x55, 0x55, 0x55)
+	p.nested.double = 0xaaf0; assertbytes(m, 0x69, 0xaa, 0xf0, 0x69, 0xf0, 0xaa, 0x55, 0x55)
+	p.nested.single = 0xaa  ; assertbytes(m, 0x69, 0xaa, 0xf0, 0x69, 0xf0, 0xaa, 0xaa, 0x55)
+	p.single = 0xaa         ; assertbytes(m, 0x69, 0xaa, 0xf0, 0x69, 0xf0, 0xaa, 0xaa, 0xaa)
+
+	local p2 = layout.newpointer(layout.newstruct{
+		{ bytes = 1 },
+		{ key = "nested", type = "struct", { bytes = 4 } },
+	})
+	local m2 = memory.create(6)
+	layout.setpointer(p2, m2)
+	p2.nested = p.nested    ; assertbytes(m2, 0x00, 0x69, 0xf0, 0xaa, 0xaa, 0x00)
+
+	memory.fill(m2, 0xff)
+	p.nested = p2.nested    ; assertbytes(m, 0x69, 0xaa, 0xf0, 0xff, 0xff, 0xff, 0xff, 0xaa)
 end
 
 print("Success!")
