@@ -2,7 +2,9 @@
 
 #include "lmemlib.h"
 
+#ifndef _KERNEL
 #include <string.h>
+#endif
 
 static lua_Integer posrelat (lua_Integer pos, size_t len);
 static int str2byte (lua_State *L, const char *s, size_t l);
@@ -389,7 +391,9 @@ typedef struct Header {
 typedef enum KOption {
 	Kint,		/* signed integers */
 	Kuint,	/* unsigned integers */
+	#ifndef _KERNEL
 	Kfloat,	/* floating-point numbers */
+	#endif
 	Kchar,	/* fixed-length strings */
 	Kstring,	/* strings with prefixed length */
 	Kzstr,	/* zero-terminated strings */
@@ -457,9 +461,11 @@ static KOption getoption (Header *h, const char **fmt, int *size) {
 		case 'j': *size = sizeof(lua_Integer); return Kint;
 		case 'J': *size = sizeof(lua_Integer); return Kuint;
 		case 'T': *size = sizeof(size_t); return Kuint;
+		#ifndef _KERNEL
 		case 'f': *size = sizeof(float); return Kfloat;
 		case 'd': *size = sizeof(double); return Kfloat;
 		case 'n': *size = sizeof(lua_Number); return Kfloat;
+		#endif
 		case 'i': *size = getnumlimit(h, fmt, sizeof(int)); return Kint;
 		case 'I': *size = getnumlimit(h, fmt, sizeof(int)); return Kuint;
 		case 's': *size = getnumlimit(h, fmt, sizeof(size_t)); return Kstring;
@@ -630,6 +636,7 @@ static int mem_pack (lua_State *L) {
 					return packfailed(L, i, arg);
 				break;
 			}
+			#ifndef _KERNEL
 			case Kfloat: {  /* floating-point options */
 				volatile Ftypes u;
 				lua_Number n;
@@ -643,6 +650,7 @@ static int mem_pack (lua_State *L) {
 				copywithendian(data, u.buff, size, h.islittle);
 				break;
 			}
+			#endif
 			case Kchar: {  /* fixed-size string */
 				size_t len;
 				const char *s = luamem_checkstring(L, arg, &len);
@@ -746,6 +754,7 @@ static int mem_unpack (lua_State *L) {
 				lua_pushinteger(L, res);
 				break;
 			}
+			#ifndef _KERNEL
 			case Kfloat: {
 				volatile Ftypes u;
 				lua_Number num;
@@ -756,6 +765,7 @@ static int mem_unpack (lua_State *L) {
 				lua_pushnumber(L, num);
 				break;
 			}
+			#endif
 			case Kchar: {
 				lua_pushlstring(L, data + pos, size);
 				break;
