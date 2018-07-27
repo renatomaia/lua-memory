@@ -186,8 +186,10 @@ function layout.struct(field, ...)
 			assert(src.bitoff == 0 and src.bits%8 == 0
 			   and dst.bitoff == 0 and dst.bits%8 == 0, "unsupported")
 			assert(dst.bytes == src.bytes, "size mismatch")
+                        local selfpos = rawget(self.parent, "pos")
+                        local valuepos = rawget(value.parent, "pos")
 			memcopy(self.parent.buffer, value.parent.buffer,
-				dst.pos, dst.pos+dst.bytes-1, src.pos)
+				selfpos+dst.pos, selfpos+dst.pos+dst.bytes-1, valuepos+src.pos)
 		else
 			error("unsupported")
 		end
