@@ -182,12 +182,18 @@ function layout.struct(field, ...)
 	end
 	function spec.write(self, value, ...)
 		if getmetatable(value) == Pointer then
-			local src, dst = value.struct, spec
-			assert(src.bitoff == 0 and src.bits%8 == 0
-			   and dst.bitoff == 0 and dst.bits%8 == 0, "unsupported")
-			assert(dst.bytes == src.bytes, "size mismatch")
-			memcopy(self.parent.buffer, value.parent.buffer,
-				dst.pos, dst.pos+dst.bytes-1, src.pos)
+			local srcspec, dstspec = value.struct, spec
+			if srcspec.bitoff == 0 and srcspec.bits%8 == 0 and
+			   dstspec.bitoff == 0 and dstspec.bits%8 == 0 then
+				assert(dstspec.bytes == srcspec.bytes, "size mismatch")
+				local srcptr, dstptr = value.parent, self.parent
+				local dstpos = dstptr.pos+dstspec.pos-1
+				local srcpos = srcptr.pos+srcspec.pos-1
+				local len = dstspec.bytes
+				memcopy(dstptr.buffer, srcptr.buffer, dstpos, dstpos+len-1, srcpos)
+			else
+				error("unsupported")
+			end
 		else
 			error("unsupported")
 		end
@@ -214,8 +220,8 @@ function module.newpointer(struct)
 end
 
 function module.setpointer(pointer, buffer, pos)
-	rawset(pointer, "buffer", buffer)
-	rawset(pointer, "pos", pos or 1)
+	pointer.buffer = buffer or empty
+	pointer.pos = pos or 1
 end
 
 return module

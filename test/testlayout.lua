@@ -350,6 +350,73 @@ do
 
 	memory.fill(m2, 0xff)
 	p.nested = p2.nested    ; assertbytes(m, 0x69, 0xaa, 0xf0, 0xff, 0xff, 0xff, 0xff, 0xaa)
+
+	for _, size in ipairs{1,2,3,5,6} do
+		local p3 = layout.newpointer(layout.newstruct{
+			{ key = "nested", type = "struct", { bytes = size } },
+		})
+		local m3 = memory.create(size)
+		layout.setpointer(p3, m3)
+		asserterr("size mismatch", function () p3.nested = p.nested end)
+		asserterr("size mismatch", function () p.nested = p3.nested end)
+	end
+end
+
+do
+	local p = layout.newpointer(layout.newstruct{
+		{ key = "half", bits = 4, endian = "big" },
+		{ key = "nested", type = "struct",
+			{ key = "half", bits = 4, endian = "big" },
+			{ key = "many", bits = 14, endian = "big" },
+			{ key = "one", bits = 1, endian = "big" },
+		},
+		{ key = "one", bits = 1, endian = "big" },
+	})
+	local m = memory.create(3)
+	layout.setpointer(p, m)
+
+	memory.set(m, 1, 0x12, 0x34, 0x56)
+	assert(p.half == 0x1)
+	assert(p.nested.half == 0x2)
+	assert(p.nested.many == 0x3454>>2)
+	assert(p.nested.one == 0x1)
+	assert(p.one == 0x0)
+
+	memory.fill(m, 0x55)
+	p.half = 0xa              ; assertbytes(m, 0xa5, 0x55, 0x55)
+	p.nested.half = 0xb       ; assertbytes(m, 0xab, 0x55, 0x55)
+	p.nested.many = 0xcdec>>2 ; assertbytes(m, 0xab, 0xcd, 0xed)
+	p.nested.one = 0x1        ; assertbytes(m, 0xab, 0xcd, 0xef)
+	p.one = 0x1               ; assertbytes(m, 0xab, 0xcd, 0xef)
+
+	local p2 = layout.newpointer(layout.newstruct{
+		{ bits = 7 },
+		{ key = "nested", type = "struct", { bits = 9 } },
+	})
+	local m2 = memory.create(2)
+	layout.setpointer(p2, m2)
+	asserterr("unsupported", function () p2.nested = p.nested end)
+	asserterr("unsupported", function () p.nested = p2.nested end)
+end
+
+do
+	local p = layout.newpointer(layout.newstruct{
+		{ key = "one", bytes = 1 },
+		{ key = "other", bytes = 1 },
+	})
+	local m = memory.create(6)
+	memory.set(m, 1, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05)
+	layout.setpointer(p, m, 3)
+	assert(p.one == 2)
+	assert(p.other == 3)
+	p.one = 252
+	p.other = 253
+	layout.setpointer(p, m, 5)
+	assert(p.one == 4)
+	assert(p.other == 5)
+	p.one = 254
+	p.other = 255
+	assertbytes(m, 0x00, 0x01, 0xfc, 0xfd, 0xfe, 0xff)
 end
 
 print("Success!")
