@@ -10,6 +10,7 @@ local memcopy = memory.fill
 local memget = memory.get
 local mempack = memory.pack
 local memunpack = memory.unpack
+local memtostring = memory.tostring
 
 local Pointer = {}
 
@@ -25,6 +26,12 @@ function Pointer:__newindex(key, value)
 	if field ~= nil then
 		field.write(self.parent, value)
 	end
+end
+
+function Pointer:__tostring()
+	assert(self.struct.bitoff == 0 and self.struct.bits%8 == 0, 'unsupported')
+	local startpos = self.parent.pos+self.struct.pos-1
+	return memtostring(self.parent.buffer, startpos, startpos + self.struct.bytes-1)
 end
 
 local LuaIntBits = 64
