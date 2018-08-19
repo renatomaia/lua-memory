@@ -254,6 +254,42 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		end
 	end
 
+
+	do print(kind, "memory:bnot([i [, j]])")
+		local data = string.rep("\x55", 10)
+		local function check(expected, i, j)
+			expected = expected:gsub("%S", "\xaa"):gsub("%s", "\x55")
+			for _, S in ipairs({tostring, memory.create}) do
+				local b = memory.create(data)
+				memory.bnot(b, i, j)
+				assert(memory.diff(b, expected) == nil)
+			end
+		end
+		check("abcabcabca")
+		check("abcabcabca", 1)
+		check("abcabcabca", 1, -1)
+		check(" abc      ", 2, 4)
+		check("      abca", 7)
+		check("          ", 7, 6)
+		check("      a   ", 7, 7)
+		check("abcabcabca",-10, 10)
+		check("abcabcabc ", 1, 9)
+		check("         a",-1)
+		check("      abca",-4)
+		check("    abc   ",-6, -4)
+		local function check(...)
+			local b = memory.create(data)
+			checkerror("index out of bounds", memory.bnot, b, ...)
+		end
+		check( mini, maxi)
+		check( mini, mini)
+		check( mini, maxi)
+		check( 0, 0)
+		check(-10,-20)
+		check( mini, -4)
+		check( 3, maxi)
+	end
+
 	do
 		local data = string.rep("\x55", 10)
 		local bitwise = {
@@ -278,22 +314,22 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 					operation(b, S"xuxu", i, j, 5)
 					assert(memory.diff(b, data) == nil)
 					operation(b, S"\x05\xaf", i, j)
-					assert(memory.diff(b, expected1) == nil, string.format("%q %q", tostring(b), tostring(expected1)))
+					assert(memory.diff(b, expected1) == nil)
 					memory.fill(b, data)
 					operation(b, S"xuxu\x05\xaf", i, j, 5)
-					assert(memory.diff(b, expected1) == nil, string.format("%q %q", tostring(b), tostring(expected1)))
+					assert(memory.diff(b, expected1) == nil)
 					memory.fill(b, data, i, j)
 					operation(b, info.byte, i, j)
-					assert(memory.diff(b, expected2) == nil, string.format("%q %q", tostring(b), tostring(expected2)))
+					assert(memory.diff(b, expected2) == nil)
 					memory.fill(b, data, i, j)
 					operation(b, S("XYZ"..info.char), i, j, 4)
-					assert(memory.diff(b, expected2) == nil, string.format("%q %q", tostring(b), tostring(expected2)))
+					assert(memory.diff(b, expected2) == nil)
 					memory.fill(b, data, i, j)
 					operation(b, S("XYZ"..info.char), i, j, -1)
-					assert(memory.diff(b, expected2) == nil, string.format("%q %q", tostring(b), tostring(expected2)))
+					assert(memory.diff(b, expected2) == nil)
 					memory.fill(b, data, i, j)
 					operation(b, S(string.rep("\x05\xaf", 5)), i, j)
-					assert(memory.diff(b, expected1) == nil, string.format("%q %q", tostring(b), tostring(expected1)))
+					assert(memory.diff(b, expected1) == nil)
 				end
 			end
 
@@ -325,7 +361,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 
 end
 
-do print "memory.resize(m, size)"
+do print("resizable", "memory.resize(m, size)")
 	local m = memory.create(3)
 	checkerror("resizable memory expected", memory.resize, m, 10)
 

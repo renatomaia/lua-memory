@@ -171,12 +171,7 @@ static int mem_not (lua_State *L) {
 		int n = (int)(j - i + 1);
 		if (i + n <= j)  /* arithmetic overflow? */
 			return luaL_error(L, "string slice too long");
-		do {
-			size_t sz = n;
-			p[i-1] = ~p[i-1];
-			i += sz;
-			n -= sz;
-		} while (i <= j);
+		for (; i<=j; ++i) p[i-1] = ~p[i-1];
 	}
 	return 0;
 }
