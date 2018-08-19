@@ -47,6 +47,34 @@ local function newresizable(s, i, j)
 	return m
 end
 
+local checkchange do
+	local function outofbounds(...)
+		local b = memory.create(10)
+		checkerror("index out of bounds", memory.fill, b, "xuxu", ...)
+	end
+	function checkchange(check)
+		check("abcabcabca")
+		check("abcabcabca", 1)
+		check("abcabcabca", 1, -1)
+		check(" abc      ", 2, 4)
+		check("      abca", 7)
+		check("          ", 7, 6)
+		check("      a   ", 7, 7)
+		check("abcabcabca",-10, 10)
+		check("abcabcabc ", 1, 9)
+		check("         a",-1)
+		check("      abca",-4)
+		check("    abc   ",-6, -4)
+		outofbounds( mini, maxi)
+		outofbounds( mini, mini)
+		outofbounds( mini, maxi)
+		outofbounds( 0, 0)
+		outofbounds(-10,-20)
+		outofbounds( mini, -4)
+		outofbounds( 3, maxi)
+	end
+end
+
 for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 
 	do print(kind, "memory.type(value)")
@@ -175,10 +203,8 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 	do print(kind, "memory:fill(string [, i [, j]])")
 		local data = string.rep(" ", 10)
 		local full = "1234567890ABCDEF"
-		local function fillup(space)
-			return full:sub(1, #space)
-		end
-		local function check(expected, i, j)
+		local function fillup(space) return full:sub(1, #space) end
+		checkchange(function (expected, i, j)
 			for _, S in ipairs({tostring, memory.create}) do
 				local b = memory.create(data)
 				memory.fill(b, S"", i, j)
@@ -198,30 +224,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 				memory.fill(b, S(full), i, j)
 				assert(memory.diff(b, expected:gsub("%S+", fillup)) == nil)
 			end
-		end
-		check("abcabcabca")
-		check("abcabcabca", 1)
-		check("abcabcabca", 1, -1)
-		check(" abc      ", 2, 4)
-		check("      abca", 7)
-		check("          ", 7, 6)
-		check("      a   ", 7, 7)
-		check("abcabcabca",-10, 10)
-		check("abcabcabc ", 1, 9)
-		check("         a",-1)
-		check("      abca",-4)
-		check("    abc   ",-6, -4)
-		local function check(...)
-			local b = memory.create(data)
-			checkerror("index out of bounds", memory.fill, b, "xuxu", ...)
-		end
-		check( mini, maxi)
-		check( mini, mini)
-		check( mini, maxi)
-		check( 0, 0)
-		check(-10,-20)
-		check( mini, -4)
-		check( 3, maxi)
+		end)
 		do
 			local b = memory.create(full)
 			memory.fill(b, b)
@@ -257,37 +260,14 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 
 	do print(kind, "memory:bnot([i [, j]])")
 		local data = string.rep("\x55", 10)
-		local function check(expected, i, j)
+		checkchange(function (expected, i, j)
 			expected = expected:gsub("%S", "\xaa"):gsub("%s", "\x55")
 			for _, S in ipairs({tostring, memory.create}) do
 				local b = memory.create(data)
 				memory.bnot(b, i, j)
 				assert(memory.diff(b, expected) == nil)
 			end
-		end
-		check("abcabcabca")
-		check("abcabcabca", 1)
-		check("abcabcabca", 1, -1)
-		check(" abc      ", 2, 4)
-		check("      abca", 7)
-		check("          ", 7, 6)
-		check("      a   ", 7, 7)
-		check("abcabcabca",-10, 10)
-		check("abcabcabc ", 1, 9)
-		check("         a",-1)
-		check("      abca",-4)
-		check("    abc   ",-6, -4)
-		local function check(...)
-			local b = memory.create(data)
-			checkerror("index out of bounds", memory.bnot, b, ...)
-		end
-		check( mini, maxi)
-		check( mini, mini)
-		check( mini, maxi)
-		check( 0, 0)
-		check(-10,-20)
-		check( mini, -4)
-		check( 3, maxi)
+		end)
 	end
 
 	do
@@ -301,10 +281,8 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 			print(kind, "memory:"..opname.."(string [, i [, j]])")
 			local operation = memory[opname]
 			local full = string.rep(info.fill, 10//#info.fill)
-			local function fillup(space)
-				return full:sub(1, #space)
-			end
-			local function check(expected, i, j)
+			local function fillup(space) return full:sub(1, #space) end
+			checkchange(function (expected, i, j)
 				local expected1 = expected:gsub("%S+", fillup):gsub("%s", "\x55")
 				local expected2 = expected:gsub("%S", info.res):gsub("%s", "\x55")
 				for _, S in ipairs({tostring, memory.create}) do
@@ -331,31 +309,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 					operation(b, S(string.rep("\x05\xaf", 5)), i, j)
 					assert(memory.diff(b, expected1) == nil)
 				end
-			end
-
-			check("abcabcabca")
-			check("abcabcabca", 1)
-			check("abcabcabca", 1, -1)
-			check(" abc      ", 2, 4)
-			check("      abca", 7)
-			check("          ", 7, 6)
-			check("      a   ", 7, 7)
-			check("abcabcabca",-10, 10)
-			check("abcabcabc ", 1, 9)
-			check("         a",-1)
-			check("      abca",-4)
-			check("    abc   ",-6, -4)
-			local function check(...)
-				local b = memory.create(data)
-				checkerror("index out of bounds", operation, b, "xuxu", ...)
-			end
-			check( mini, maxi)
-			check( mini, mini)
-			check( mini, maxi)
-			check( 0, 0)
-			check(-10,-20)
-			check( mini, -4)
-			check( 3, maxi)
+			end)
 		end
 	end
 
