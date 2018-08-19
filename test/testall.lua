@@ -187,6 +187,8 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 				assert(memory.diff(b, data) == nil)
 				memory.fill(b, S"abc", i, j)
 				assert(memory.diff(b, expected) == nil)
+				memory.fill(b, S"xuxuabc", i, j, 5)
+				assert(memory.diff(b, expected) == nil)
 				memory.fill(b, 0x55, i, j)
 				assert(memory.diff(b, expected:gsub("%S", "\x55")) == nil)
 				memory.fill(b, S"XYZ", i, j, 3)
@@ -249,6 +251,75 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 			local b = memory.create(full)
 			memory.fill(b, b, 7, -1)
 			assert(memory.diff(b, "1234561234567890") == nil)
+		end
+	end
+
+	do
+		local data = string.rep("\x55", 10)
+		local bitwise = {
+			band = { fill = "\x05\x05", byte = 0x0a, char = "\xa0", res = "\x00" },
+			bor  = { fill = "\x55\xff", byte = 0xaf, char = "\xfa", res = "\xff" },
+			bxor = { fill = "\x50\xfa", byte = 0xaf, char = "\xaf", res = "\xfa" },
+		}
+		for opname, info in pairs(bitwise) do
+			print(kind, "memory:"..opname.."(string [, i [, j]])")
+			local operation = memory[opname]
+			local full = string.rep(info.fill, 10//#info.fill)
+			local function fillup(space)
+				return full:sub(1, #space)
+			end
+			local function check(expected, i, j)
+				local expected1 = expected:gsub("%S+", fillup):gsub("%s", "\x55")
+				local expected2 = expected:gsub("%S", info.res):gsub("%s", "\x55")
+				for _, S in ipairs({tostring, memory.create}) do
+					local b = memory.create(data)
+					operation(b, S"", i, j)
+					assert(memory.diff(b, data) == nil)
+					operation(b, S"xuxu", i, j, 5)
+					assert(memory.diff(b, data) == nil)
+					operation(b, S"\x05\xaf", i, j)
+					assert(memory.diff(b, expected1) == nil, string.format("%q %q", tostring(b), tostring(expected1)))
+					memory.fill(b, data)
+					operation(b, S"xuxu\x05\xaf", i, j, 5)
+					assert(memory.diff(b, expected1) == nil, string.format("%q %q", tostring(b), tostring(expected1)))
+					memory.fill(b, data, i, j)
+					operation(b, info.byte, i, j)
+					assert(memory.diff(b, expected2) == nil, string.format("%q %q", tostring(b), tostring(expected2)))
+					memory.fill(b, data, i, j)
+					operation(b, S("XYZ"..info.char), i, j, 4)
+					assert(memory.diff(b, expected2) == nil, string.format("%q %q", tostring(b), tostring(expected2)))
+					memory.fill(b, data, i, j)
+					operation(b, S("XYZ"..info.char), i, j, -1)
+					assert(memory.diff(b, expected2) == nil, string.format("%q %q", tostring(b), tostring(expected2)))
+					memory.fill(b, data, i, j)
+					operation(b, S(string.rep("\x05\xaf", 5)), i, j)
+					assert(memory.diff(b, expected1) == nil, string.format("%q %q", tostring(b), tostring(expected1)))
+				end
+			end
+
+			check("abcabcabca")
+			check("abcabcabca", 1)
+			check("abcabcabca", 1, -1)
+			check(" abc      ", 2, 4)
+			check("      abca", 7)
+			check("          ", 7, 6)
+			check("      a   ", 7, 7)
+			check("abcabcabca",-10, 10)
+			check("abcabcabc ", 1, 9)
+			check("         a",-1)
+			check("      abca",-4)
+			check("    abc   ",-6, -4)
+			local function check(...)
+				local b = memory.create(data)
+				checkerror("index out of bounds", operation, b, "xuxu", ...)
+			end
+			check( mini, maxi)
+			check( mini, mini)
+			check( mini, maxi)
+			check( 0, 0)
+			check(-10,-20)
+			check( mini, -4)
+			check( 3, maxi)
 		end
 	end
 

@@ -160,21 +160,44 @@ static int mem_find (lua_State *L) {
 	return 0;
 }
 
-static int mem_fill (lua_State *L) {
+static int mem_not (lua_State *L) {
+	size_t len;
+	unsigned char *p = (unsigned char *)luamem_checkmemory(L, 1, &len);
+	lua_Integer i = posrelat(luaL_optinteger(L, 2, 1), len);
+	lua_Integer j = posrelat(luaL_optinteger(L, 3, -1), len);
+	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 3, "index out of bounds");
+	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 4, "index out of bounds");
+	if (i <= j) {
+		int n = (int)(j - i + 1);
+		if (i + n <= j)  /* arithmetic overflow? */
+			return luaL_error(L, "string slice too long");
+		do {
+			size_t sz = n;
+			p[i-1] = ~p[i-1];
+			i += sz;
+			n -= sz;
+		} while (i <= j);
+	}
+	return 0;
+}
+
+typedef void (mem_ChangeOp)(unsigned char *, const unsigned char *, size_t);
+
+static int mem_change (lua_State *L, mem_ChangeOp changeop) {
 	size_t len, sl;
-	char *p = luamem_checkmemory(L, 1, &len);
+	unsigned char *p = (unsigned char *)luamem_checkmemory(L, 1, &len);
 	lua_Integer i = posrelat(luaL_optinteger(L, 3, 1), len);
 	lua_Integer j = posrelat(luaL_optinteger(L, 4, -1), len);
-	char c;
-	const char *s = NULL;
+	unsigned char c;
+	const unsigned char *s = NULL;
 	lua_Integer os;
 	if (lua_type(L, 2) == LUA_TNUMBER) {
 		s = &c;
 		sl = 1;
 		os = 1;
-		code2char(L, 2, &c, 1);
+		code2char(L, 2, (char *)&c, 1);
 	} else {
-		s = luamem_checkstring(L, 2, &sl);
+		s = (const unsigned char *)luamem_checkstring(L, 2, &sl);
 		os = posrelat(luaL_optinteger(L, 5, 1), sl);
 	}
 	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 3, "index out of bounds");
@@ -189,13 +212,31 @@ static int mem_fill (lua_State *L) {
 		sl -= os;
 		do {
 			size_t sz = n < sl ? n : sl;
-			memmove(p+i-1, s, sz * sizeof(char));
+			changeop(p+i-1, s, sz * sizeof(unsigned char));
 			i += sz;
 			n -= sz;
 		} while (i <= j);
 	}
 	return 0;
 }
+
+static void mem_copy(unsigned char *d, const unsigned char *s, size_t n) {
+	memmove(d, s, n);
+}
+
+#define BITWISEOP(n, op) \
+	static void n (unsigned char *d, const unsigned char *s, size_t n) { \
+		size_t i; \
+		for (i=0; i<n; ++i) d[i] op s[i]; \
+	}
+BITWISEOP(mem_bitand, &=)
+BITWISEOP(mem_bitor, |=)
+BITWISEOP(mem_bitxor, ^=)
+
+static int mem_fill (lua_State *L) { return mem_change(L, mem_copy); }
+static int mem_and (lua_State *L) { return mem_change(L, mem_bitand); }
+static int mem_or (lua_State *L) { return mem_change(L, mem_bitor); }
+static int mem_xor (lua_State *L) { return mem_change(L, mem_bitxor); }
 
 static int mem_pack (lua_State *L);
 static int mem_unpack (lua_State *L);
@@ -208,6 +249,10 @@ static const luaL_Reg lib[] = {
 	{"diff", mem_diff},
 	{"find", mem_find},
 	{"fill", mem_fill},
+	{"band", mem_and},
+	{"bor", mem_or},
+	{"bxor", mem_xor},
+	{"bnot", mem_not},
 	{"get", mem_get},
 	{"set", mem_set},
 	{"pack", mem_pack},
