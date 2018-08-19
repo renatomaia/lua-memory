@@ -165,14 +165,9 @@ static int mem_not (lua_State *L) {
 	unsigned char *p = (unsigned char *)luamem_checkmemory(L, 1, &len);
 	lua_Integer i = posrelat(luaL_optinteger(L, 2, 1), len);
 	lua_Integer j = posrelat(luaL_optinteger(L, 3, -1), len);
-	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 3, "index out of bounds");
-	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 4, "index out of bounds");
-	if (i <= j) {
-		int n = (int)(j - i + 1);
-		if (i + n <= j)  /* arithmetic overflow? */
-			return luaL_error(L, "string slice too long");
-		for (; i<=j; ++i) p[i-1] = ~p[i-1];
-	}
+	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 2, "index out of bounds");
+	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 3, "index out of bounds");
+	for (; i<=j; ++i) p[i-1] = ~p[i-1];
 	return 0;
 }
 

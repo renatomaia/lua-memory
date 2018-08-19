@@ -257,16 +257,13 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		end
 	end
 
-
 	do print(kind, "memory:bnot([i [, j]])")
 		local data = string.rep("\x55", 10)
 		checkchange(function (expected, i, j)
 			expected = expected:gsub("%S", "\xaa"):gsub("%s", "\x55")
-			for _, S in ipairs({tostring, memory.create}) do
-				local b = memory.create(data)
-				memory.bnot(b, i, j)
-				assert(memory.diff(b, expected) == nil)
-			end
+			local b = memory.create(data)
+			memory.bnot(b, i, j)
+			assert(memory.diff(b, expected) == nil)
 		end)
 	end
 
