@@ -206,7 +206,7 @@ Returns 1 if the value at the given index is a memory (allocated or referenced),
 ### `luamem_tomemory`
 
 ```C
-void *luamem_tomemory (lua_State *L, int idx, size_t *len);
+char *luamem_tomemory (lua_State *L, int idx, size_t *len);
 ```
 
 Equivalent to `luamem_tomemoryx(L, idx, len, NULL, NULL)`.
