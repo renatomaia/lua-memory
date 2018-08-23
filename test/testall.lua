@@ -267,6 +267,33 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		end)
 	end
 
+	do print(kind, "memory:lshift(v [, i [, j]])")
+		local data = string.rep(" ", 10)
+		checkchange(function (expected, i, j)
+			for v = -15, 15 do
+				local shifted = (string.unpack(">I5", data)<<v)&0xffffffffff
+				local a,b,c = string.match(string.pack(">I5", shifted), "^(..)(.)(..)$")
+				local function fillup(space)
+					local pat = a..string.rep(b, #space-4)..c
+					if v < 0 then
+						return string.sub(pat, 1, #space)
+					else
+						return string.sub(pat, -#space)
+					end
+				end
+				local expected = expected:gsub("[^ ]+", fillup, 1)
+				local b = memory.create(data)
+				memory.lshift(b, v, i, j)
+
+--print(v, string.format(string.rep("%02x ", 5), string.byte(a..b..c, 1, -1)))
+print(v, string.format("actual  : "..string.rep("%02x", 10), memory.get(b, 1, -1)))
+print(v, string.format("expected: "..string.rep("%02x", 10), string.byte(expected, 1, -1)))
+
+				assert(memory.diff(b, expected) == nil)
+			end
+		end)
+	end
+
 	do
 		local data = string.rep("\x55", 10)
 		local bitwise = {

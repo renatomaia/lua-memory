@@ -171,6 +171,42 @@ static int mem_not (lua_State *L) {
 	return 0;
 }
 
+static int mem_shift (lua_State *L, lua_Integer c) {
+	size_t len;
+	unsigned char *p = (unsigned char *)luamem_checkmemory(L, 1, &len);
+	lua_Integer i = posrelat(luaL_optinteger(L, 3, 1), len);
+	lua_Integer j = posrelat(luaL_optinteger(L, 4, -1), len);
+	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 3, "index out of bounds");
+	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 4, "index out of bounds");
+	if (i<=j) {
+		if (c<0) {
+			size_t shift = -c%CHAR_BIT;
+			lua_Integer bytes = -c/CHAR_BIT;
+			for (i+=bytes, --j; i<=j; --j)
+				p[j] = (p[j]>>shift)|p[j-bytes-1]<<(CHAR_BIT-shift);
+			p[j--] >>= shift;
+			i -= bytes+1;
+		} else {
+			size_t shift = c%CHAR_BIT;
+			lua_Integer bytes = c/CHAR_BIT;
+			for (--i, j-=bytes+1; i<j; ++i)
+				p[i] = (p[i]<<shift)|p[i+bytes+1]>>(CHAR_BIT-shift);
+			p[i++] <<= shift;
+			j += bytes;
+		}
+		for (; i<=j; ++i) p[i] = 0;
+	}
+	return 0;
+}
+
+static int mem_lshift (lua_State *L) {
+	return mem_shift(L, luaL_checkinteger(L, 2));
+}
+
+static int mem_rshift (lua_State *L) {
+	return mem_shift(L, -luaL_checkinteger(L, 2));
+}
+
 typedef void (mem_ChangeOp)(unsigned char *, const unsigned char *, size_t);
 
 static int mem_change (lua_State *L, mem_ChangeOp changeop) {
@@ -243,6 +279,8 @@ static const luaL_Reg lib[] = {
 	{"bor", mem_or},
 	{"bxor", mem_xor},
 	{"bnot", mem_not},
+	{"lshift", mem_lshift},
+	{"rshift", mem_rshift},
 	{"get", mem_get},
 	{"set", mem_set},
 	{"pack", mem_pack},
