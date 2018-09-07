@@ -170,6 +170,79 @@ local function layoutstruct(fields, byteidx, bitoff)
 	return spec, byteidx, bitoff
 end
 
+local function layoutunion(fields, byteidx, bitoff)
+	assert(type(fields) == "table" and #fields > 0, "invalid type")
+	local spec = {
+		pos = byteidx,
+		bitoff = bitoff,
+		bits = 0,
+		bytes = 0,
+	}
+
+	local specs = {}
+	local maxsizefield = 0
+	local byteidxmax = 0
+	local bitoffmax = 0
+	for _, field in ipairs(fields) do
+		local key = field.key
+		local type = field.type
+		if type == nil then type = "number" end
+		local build = assert(layout[type], "unsupported type")
+		local field, byteidxtemp, bitofftemp = build(field, byteidx, bitoff)
+
+		if field.bits == nil then
+			if field.bytes * 8 > maxsizefield then
+				maxsizefield = field.bytes * 8
+				byteidxmax = byteidxtemp
+				bitoffmax = bitofftemp
+				spec.bytes = byteidxtemp-spec.pos
+				spec.bits = 8*(spec.bytes)+bitofftemp-spec.bitoff
+			end
+		else
+			if field.bits > maxsizefield then
+				maxsizefield = field.bits
+				byteidxmax = byteidxtemp
+				bitoffmax = bitofftemp
+				spec.bytes = byteidxtemp-spec.pos
+				spec.bits = 8*(spec.bytes)+bitofftemp-spec.bitoff
+			end
+		end
+
+		if key ~= nil then
+			specs[key] = field
+		end
+	end
+	spec.fields = specs
+	return spec, byteidxmax, bitoffmax
+end
+
+function layout.union(field, ...)
+	local spec, byteidx, bitoff = layoutunion(field, ...)
+	function spec.read(self)
+		local pointer = self[spec]
+		if pointer == nil then
+			pointer = setmetatable({ struct = spec, parent = self }, Pointer)
+			self[spec] = pointer
+		end
+		return pointer
+	end
+	function spec.write(self, value, key)
+		if getmetatable(value) == Pointer then
+			local src, dst = value.struct, spec
+			assert(src.bitoff == 0 and src.bits%8 == 0
+			   and dst.bitoff == 0 and dst.bits%8 == 0, "unsupported")
+			assert(dst.bytes == src.bytes, "size mismatch")
+                        local selfpos = rawget(self.parent, "pos")
+                        local valuepos = rawget(value.parent, "pos")
+			memcopy(self.parent.buffer, value.parent.buffer,
+				selfpos+dst.pos, selfpos+dst.pos+dst.bytes-1, valuepos+src.pos)
+		else
+			error("unsupported")
+		end
+	end
+	return spec, byteidx, bitoff
+end
+
 function layout.struct(field, ...)
 	local spec, byteidx, bitoff = layoutstruct(field, ...)
 	function spec.read(self)
