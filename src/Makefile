@@ -92,7 +92,7 @@ none:
 	@echo "   $(PLATS)"
 
 linux:
-	$(MAKE) $(ALL) LD="gcc" MYCFLAGS="-fpic $(MYCFLAGS)" \
+	$(MAKE) $(ALL) MYCFLAGS="-fpic $(MYCFLAGS)" \
 	               MYLDFLAGS="-Wl,-E -O -shared $(MYLDFLAGS)"
 
 macosx:
