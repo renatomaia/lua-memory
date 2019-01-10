@@ -56,13 +56,13 @@ so:	$(ALL_S)
 m:	$(ALL_M)
 
 $(API_S): $(API_O)
-	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(MEM_M): $(MEM_O) $(API_S)
-	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(LIB_S): $(LIB_O) $(API_S) $(ALL_M)
-	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(LIB_A): $(ALL_O)
 	$(AR) $@ $^
@@ -92,12 +92,12 @@ none:
 	@echo "   $(PLATS)"
 
 linux:
-	$(MAKE) $(ALL) LD="gcc" MYCFLAGS="-fpic $(MYCFLAGS)" \
-	               MYLDFLAGS="-Wl,-E -O -shared $(MYLDFLAGS)"
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX -fpic" \
+	               SYSLDFLAGS="-Wl,-E -O -shared"
 
 macosx:
-	$(MAKE) $(ALL) MYCFLAGS="-fno-common $(MYCFLAGS)" \
-	               MYLDFLAGS="-bundle -undefined dynamic_lookup $(MYLDFLAGS)" \
-	               LD='export MACOSX_DEPLOYMENT_TARGET="10.10"; gcc'
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_MACOSX -fno-common" \
+	               SYSLDFLAGS="-bundle -undefined dynamic_lookup" \
+	               CC='export MACOSX_DEPLOYMENT_TARGET="10.10"; gcc'
 
 # (end of Makefile)
