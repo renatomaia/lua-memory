@@ -50,8 +50,8 @@ LUAMEMLIB_API const char *(luamem_tostring) (lua_State *L, int idx, size_t *len)
 LUAMEMLIB_API const char *(luamem_checkstring) (lua_State *L, int idx, size_t *len);
 
 
-LUAMEMLIB_API void *(luamem_realloc) (lua_State *L, void *mem, size_t old,
-                                                               size_t new);
+LUAMEMLIB_API void *(luamem_realloc) (lua_State *L, void *mem, size_t osize,
+                                                               size_t nsize);
 LUAMEMLIB_API void (luamem_free) (lua_State *L, void *memo, size_t size);
 LUAMEMLIB_API size_t (luamem_checklenarg) (lua_State *L, int idx);
 

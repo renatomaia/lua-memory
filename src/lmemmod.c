@@ -3,10 +3,11 @@
 #include "lmemlib.h"
 
 #include <string.h>
+#include <lualib.h>
 
 static lua_Integer posrelat (lua_Integer pos, size_t len);
 static int str2byte (lua_State *L, const char *s, size_t l);
-static void code2char (lua_State *L, int idx, char *p, int n);
+static void code2char (lua_State *L, int idx, char *p, lua_Integer n);
 static const char *lmemfind (const char *s1, size_t l1,
                              const char *s2, size_t l2);
 
@@ -31,9 +32,9 @@ static int mem_create (lua_State *L) {
 				len = 0;
 				s = NULL;
 			} else {
-				len = (int)(pose - posi + 1);
-				if (posi + len <= pose)  /* arithmetic overflow? */
+				if (pose - posi >= INT_MAX)  /* arithmetic overflow? */
 					return luaL_error(L, "string slice too long");
+				len = (pose - posi) + 1;
 				s += posi-1;
 			}
 		}
@@ -51,11 +52,11 @@ static int mem_resize (lua_State *L) {
 	size_t size = luamem_checklenarg(L, 2);
 	luaL_argcheck(L, unref == luamem_free, 1, "resizable memory expected");
 	if (len != size) {
-		char *new = luamem_realloc(L, mem, len, size);
-		if (!new) luaL_error(L, "out of memory");
+		char *resized = (char *)luamem_realloc(L, mem, len, size);
+		if (!resized) luaL_error(L, "out of memory");
 		luamem_setref(L, 1, mem, len, NULL);  /* don't free `mem` again */
-		if (len < size) memset(new+len, 0, (size-len)*sizeof(char));
-		luamem_setref(L, 1, new, size, luamem_free);
+		if (len < size) memset(resized+len, 0, (size-len)*sizeof(char));
+		luamem_setref(L, 1, resized, size, luamem_free);
 	}
 	return 0;
 }
@@ -125,12 +126,12 @@ static int mem_get (lua_State *L) {
 
 static int mem_set (lua_State *L) {
 	size_t len;
-	int n = lua_gettop(L)-2;  /* number of bytes */
+	lua_Integer n = lua_gettop(L)-2;  /* number of bytes */
 	char *p = luamem_checkmemory(L, 1, &len);
 	lua_Integer i = posrelat(luaL_checkinteger(L, 2), len);
 	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 2, "index out of bounds");
 	len = 1+len-i;
-	code2char(L, 3, p+i-1, n<len ? n : len);
+	code2char(L, 3, p+i-1, n < (lua_Integer)len ? n : (lua_Integer)len);
 	return 0;
 }
 
@@ -179,8 +180,8 @@ static int mem_fill (lua_State *L) {
 	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 4, "index out of bounds");
 	if (os < 1) os = 1;
 	if (i <= j && os <= (lua_Integer)sl) {
-		int n = (int)(j - i + 1);
-		if (i + n <= j)  /* arithmetic overflow? */
+		size_t n = (size_t)(j-i+1);
+		if (i+(lua_Integer)n <= j)  /* arithmetic overflow? */
 			return luaL_error(L, "string slice too long");
 		--os;
 		s += os;
@@ -292,7 +293,7 @@ static int str2byte (lua_State *L, const char *s, size_t l) {
 	return n;
 }
 
-static void code2char (lua_State *L, int idx, char *p, int n) {
+static void code2char (lua_State *L, int idx, char *p, lua_Integer n) {
 	int i;
 	for (i=0; i<n; ++i, ++idx) {
 		lua_Integer c = luaL_checkinteger(L, idx);
@@ -557,9 +558,9 @@ static int packstream (char **b, size_t *i, size_t lb,
 ** the size of a Lua integer, correcting the extra sign-extension
 ** bytes if necessary (by default they would be zeros).
 */
-static int packint (char **b, size_t *i, size_t lb,
+static int packint (char **b, size_t *pos, size_t lb,
                     lua_Unsigned n, int islittle, int size, int neg) {
-	char *buff = getbytes(b, i, lb, size);
+	char *buff = getbytes(b, pos, lb, size);
 	if (buff) {
 		int i;
 		buff[islittle ? 0 : size - 1] = (char)(n & MC);  /* first byte */
@@ -596,13 +597,15 @@ static void copywithendian (volatile char *dest, volatile const char *src,
 
 static int mem_pack (lua_State *L) {
 	Header h;
-	size_t lb;
+	size_t i, lb;
 	char *mem = luamem_checkmemory(L, 1, &lb);
 	const char *fmt = luaL_checkstring(L, 2);  /* format string */
-	size_t i = (size_t)posrelat(luaL_checkinteger(L, 3), lb) - 1;
+	lua_Integer pos = posrelat(luaL_checkinteger(L, 3), lb) - 1;
 	int arg = 3;  /* current argument to pack */
-	luaL_argcheck(L, 0 <= i && i <= (lua_Integer)lb-1, 3, "index out of bounds");
+	luaL_argcheck(L, 0 <= pos && pos <= (lua_Integer)lb-1, 3,
+		"index out of bounds");
 	initheader(L, &h);
+	i = (size_t)pos;
 	mem += i;
 	while (*fmt != '\0') {
 		int size, ntoalign;

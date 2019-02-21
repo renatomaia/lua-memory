@@ -11,7 +11,7 @@ static int typeerror (lua_State *L, int arg, const char *tname);
 
 
 LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
-	char *mem = lua_newuserdata(L, l * sizeof(char));
+	char *mem = (char *)lua_newuserdata(L, l * sizeof(char));
 	luaL_newmetatable(L, LUAMEM_ALLOC);
 	lua_setmetatable(L, -2);
 	return mem;
@@ -29,7 +29,7 @@ typedef struct luamem_Ref {
 #define unref(L,r)	if (r->unref) ref->unref(L, r->mem, r->len)
 
 static int luaunref (lua_State *L) {
-	luamem_Ref *ref = luaL_testudata(L, 1, LUAMEM_REF);
+	luamem_Ref *ref = (luamem_Ref *)luaL_testudata(L, 1, LUAMEM_REF);
 	if (ref) unref(L, ref);
 	return 0;
 }
@@ -48,7 +48,7 @@ LUAMEMLIB_API void luamem_newref (lua_State *L) {
 
 LUAMEMLIB_API int luamem_setref (lua_State *L, int idx, 
                                  char *mem, size_t len, luamem_Unref unref) {
-	luamem_Ref *ref = luaL_testudata(L, idx, LUAMEM_REF);
+	luamem_Ref *ref = (luamem_Ref *)luaL_testudata(L, idx, LUAMEM_REF);
 	if (ref) {
 		if (mem != ref->mem) unref(L, ref);
 		ref->mem = mem;
@@ -118,11 +118,11 @@ LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
 }
 
 
-LUAMEMLIB_API void *luamem_realloc(lua_State *L, void *mem, size_t old,
-                                                            size_t new) {
+LUAMEMLIB_API void *luamem_realloc(lua_State *L, void *mem, size_t osize,
+                                                            size_t nsize) {
 	void *userdata;
 	lua_Alloc alloc = lua_getallocf(L, &userdata);
-	return alloc(userdata, mem, old, new);
+	return alloc(userdata, mem, osize, nsize);
 }
 
 LUAMEMLIB_API void luamem_free(lua_State *L, void *mem, size_t size) {
