@@ -117,6 +117,18 @@ LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
 	return s;
 }
 
+LUAMEMLIB_API const char *luamem_optstring (lua_State *L,
+                                            int arg,
+                                            const char *def,
+                                            size_t *len) {
+	if (lua_isnoneornil(L, arg)) {
+		if (len)
+			*len = (def ? strlen(def) : 0);
+		return def;
+	}
+	else return luamem_checkstring(L, arg, len);
+}
+
 
 LUAMEMLIB_API void *luamem_realloc(lua_State *L, void *mem, size_t osize,
                                                             size_t nsize) {
