@@ -62,6 +62,12 @@ LUAMEMLIB_API int luamem_setref (lua_State *L, int idx,
 }
 
 
+LUAMEMLIB_API int luamem_ismemory (lua_State *L, int idx) {
+	int type;
+	luamem_tomemoryx(L, idx, NULL, NULL, &type);
+	return type != LUAMEM_TNONE;
+}
+
 LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
                                       size_t *len, luamem_Unref *unref,
                                       int *type) {
@@ -96,8 +102,9 @@ LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
 }
 
 LUAMEMLIB_API char *luamem_checkmemory (lua_State *L, int arg, size_t *len) {
-	char *mem = luamem_tomemory(L, arg, len);
-	if (!mem) typeerror(L, arg, "memory");
+	int type;
+	char *mem = luamem_tomemoryx(L, arg, len, NULL, &type);
+	if (type == LUAMEM_TNONE) typeerror(L, arg, "memory");
 	return mem;
 }
 
@@ -107,16 +114,21 @@ LUAMEMLIB_API int luamem_isstring (lua_State *L, int idx) {
 }
 
 LUAMEMLIB_API const char *luamem_tostring (lua_State *L, int idx, size_t *len) {
-	const char *s = luamem_tomemory(L, idx, len);
-	if (s) return s;
+	int type;
+	const char *s = luamem_tomemoryx(L, idx, len, NULL, &type);
+	if (type != LUAMEM_TNONE) return s;
 	return lua_tolstring(L, idx, len);
 }
 
 LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
                                               int arg,
                                               size_t *len) {
-	const char *s = luamem_tostring(L, arg, len);
-	if (!s) typeerror(L, arg, "string or memory");
+	int type;
+	const char *s = luamem_tomemoryx(L, arg, len, NULL, &type);
+	if (type == LUAMEM_TNONE) {
+		s = lua_tolstring(L, arg, len);
+		if (!s) typeerror(L, arg, "string or memory");
+	}
 	return s;
 }
 

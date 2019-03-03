@@ -36,9 +36,9 @@ LUAMEMLIB_API int (luamem_setref) (lua_State *L, int idx,
                                    char *mem, size_t len, luamem_Unref unref);
 
 
-#define luamem_ismemory(L,I)	(luamem_tomemory(L,I,NULL) != NULL)
 #define luamem_tomemory(L,I,S)	(luamem_tomemoryx(L,I,S,NULL,NULL))
 
+LUAMEMLIB_API int (luamem_ismemory) (lua_State *L, int idx);
 LUAMEMLIB_API char *(luamem_tomemoryx) (lua_State *L, int idx,
                                         size_t *len, luamem_Unref *unref,
                                         int *type);

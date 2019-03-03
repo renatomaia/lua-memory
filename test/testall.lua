@@ -259,6 +259,9 @@ do print "memory.resize(m, size)"
 	checkerror("resizable memory expected", memory.resize, m, 10)
 
 	local m = memory.create()
+	assert(memory.len(m) == 0)
+	assert(memory.tostring(m) == "")
+
 	memory.resize(m, 10)
 	assert(tostring(m) == string.rep('\0', 10))
 
