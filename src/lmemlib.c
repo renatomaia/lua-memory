@@ -72,6 +72,7 @@ LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
 		if (lua_getmetatable(L, idx)) {  /* does it have a metatable? */
 			luaL_getmetatable(L, LUAMEM_ALLOC);  /* get allocated memory metatable */
 			if (lua_rawequal(L, -1, -2)) {  /* is the same? */
+				lua_pop(L, 2);  /* remove both metatables */
 				mem = (char *)p;
 				if (len) *len = lua_rawlen(L, idx);
 				if (type) *type = LUAMEM_TALLOC;
@@ -85,8 +86,8 @@ LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
 					if (unref) *unref = ref->unref;
 					if (type) *type = LUAMEM_TREF;
 				}
+				lua_pop(L, 2);  /* remove both metatables */
 			}
-			lua_pop(L, 2);  /* remove both metatables */
 		}
 	}
 	return mem;
