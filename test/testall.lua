@@ -268,6 +268,9 @@ do print "memory.resize(m, size)"
 
 	memory.resize(m, 5)
 	assert(tostring(m) == "abcde")
+
+	memory.resize(m, 0)
+	assert(tostring(m) == "")
 end
 
 print "OK"

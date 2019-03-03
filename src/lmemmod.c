@@ -53,7 +53,7 @@ static int mem_resize (lua_State *L) {
 	luaL_argcheck(L, unref == luamem_free, 1, "resizable memory expected");
 	if (len != size) {
 		char *resized = (char *)luamem_realloc(L, mem, len, size);
-		if (!resized) luaL_error(L, "out of memory");
+		if (size && !resized) luaL_error(L, "out of memory");
 		luamem_setref(L, 1, mem, len, NULL);  /* don't free `mem` again */
 		if (len < size) memset(resized+len, 0, (size-len)*sizeof(char));
 		luamem_setref(L, 1, resized, size, luamem_free);
