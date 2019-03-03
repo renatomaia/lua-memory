@@ -50,8 +50,10 @@ LUAMEMLIB_API int luamem_setref (lua_State *L, int idx,
                                  char *mem, size_t len, luamem_Unref unref) {
 	luamem_Ref *ref = (luamem_Ref *)luaL_testudata(L, idx, LUAMEM_REF);
 	if (ref) {
-		if (mem != ref->mem) unref(L, ref);
-		ref->mem = mem;
+		if (mem != ref->mem) {
+			unref(L, ref);
+			ref->mem = mem;
+		}
 		ref->len = len;
 		ref->unref = unref;
 		return 1;

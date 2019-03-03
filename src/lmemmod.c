@@ -222,19 +222,23 @@ static const luaL_Reg meta[] = {
 };
 
 
-static void setupmetatable (lua_State *L, const char *name) {
-	luaL_newmetatable(L, name);
-	luaL_setfuncs(L, meta, 0);  /* add metamethods to new metatable */
-	lua_pushvalue(L, -2);  /* push library */
-	lua_setfield(L, -2, "__index");  /* metatable.__index = library */
-	lua_pop(L, 1);  /* pop new metatable */
+static void setupmetatable (lua_State *L) {
+	if (lua_getmetatable(L, -1)) {
+		luaL_setfuncs(L, meta, 0);  /* add metamethods to metatable */
+		lua_pushvalue(L, 1);  /* push library */
+		lua_setfield(L, -2, "__index");  /* metatable.__index = library */
+		lua_pop(L, 1);  /* pop metatable */
+	}
+	lua_pop(L, 1);  /* pop memory */
 }
 
 
 LUAMEMMOD_API int luaopen_memory (lua_State *L) {
 	luaL_newlib(L, lib);
-	setupmetatable(L, LUAMEM_ALLOC);
-	setupmetatable(L, LUAMEM_REF);
+	luamem_newalloc(L, 0);
+	setupmetatable(L);
+	luamem_newref(L);
+	setupmetatable(L);
 	return 1;
 }
 
