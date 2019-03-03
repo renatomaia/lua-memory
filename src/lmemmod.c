@@ -176,11 +176,11 @@ static int mem_fill (lua_State *L) {
 		s = luamem_checkstring(L, 2, &sl);
 		os = posrelat(luaL_optinteger(L, 5, 1), sl);
 	}
-	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 3, "index out of bounds");
-	luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 4, "index out of bounds");
 	if (os < 1) os = 1;
 	if (i <= j && os <= (lua_Integer)sl) {
 		size_t n = (size_t)(j-i+1);
+		luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 3, "index out of bounds");
+		luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 4, "index out of bounds");
 		if (i+(lua_Integer)n <= j)  /* arithmetic overflow? */
 			return luaL_error(L, "string slice too long");
 		--os;

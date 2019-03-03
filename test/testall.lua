@@ -205,6 +205,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		check("          ", 7, 6)
 		check("      a   ", 7, 7)
 		check("abcabcabca",-10, 10)
+		check("          ",-10,-20)
 		check("abcabcabc ", 1, 9)
 		check("         a",-1)
 		check("      abca",-4)
@@ -217,7 +218,6 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		check( mini, mini)
 		check( mini, maxi)
 		check( 0, 0)
-		check(-10,-20)
 		check( mini, -4)
 		check( 3, maxi)
 		do
