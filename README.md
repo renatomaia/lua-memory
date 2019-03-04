@@ -11,8 +11,18 @@ The library provides the following functionalities:
 Documentation
 -------------
 
-- [Manual](doc/manual.md)
 - [License](LICENSE)
+- [Manual](doc/manual.md)
+- [Demos](demo/)
+  - [Create Fixed-Size Memory](demo/fixed.lua)
+  - [Create Resizable Memory](demo/resizable.lua)
+  - [Change Contents](demo/fill.lua)
+  - [Inspect Contents](demo/inspect.lua)
+  - [Compare Contents](demo/compare.lua)
+  - [(Un)packing Data](demo/packing.lua)
+- C API Use
+  - [Module `memory` Source](src/lmemmod.c)
+  - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/pull/1/files)
 
 TODO
 ----
@@ -23,5 +33,4 @@ TODO
 History
 -------
 
-Version 1.0:
-:	First release.
+- **Version 1.0**: First release.

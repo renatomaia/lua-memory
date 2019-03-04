@@ -1,24 +1,27 @@
 -- create a memory
-local m = memory.create(10)
+eight = memory.create(8)
 
--- fill memory with zeros
-memory.fill(m, 0)
+-- set memory contents
+memory.set(eight, 1, 0x01, 0x23, 0x45, 0x67,
+                     0x89, 0xab, 0xcd, 0xef)
+assert(memory.tostring(eight) == "\x01\x23\x45\x67\x89\xab\xcd\xef")
 
--- iterate over memory
-for i = 1, memory.len(m) do
-	print(i, memory.get(m, i))
-end
+-- fill memory with contents from string
+memory.fill(eight, "Hello, world!")
+assert(memory.tostring(eight) == "Hello, w")
 
--- iterate to fill the memory
-for i = 1, memory.len(m) do
-	memory.set(m, i, 2*i)
-end
+-- fill a portion of the memory
+memory.fill(eight, "boy!", 5)
+assert(memory.tostring(eight) == "Hellboy!")
 
--- sets 4th, 5th and 6th bytes in the memory
-memory.set(m, 4, 0xff, 0xff, 0xff)
+-- sets last byte to zero
+memory.set(eight, -1, 0)
+assert(memory.tostring(eight) == "Hellboy\0")
 
--- copy 3 bytes from position 4 to position 1
-memory.fill(m, m, 1, 3, 4)
+-- fill positions 3 to 8 with contents from position 2
+memory.fill(eight, eight, 3, 8, 2)
+assert(memory.tostring(eight) == "Heellboy")
 
--- clear the positions after the 3 first bytes
-memory.fill(m, 0, 4)
+-- fill initial portion of memory
+memory.fill(eight, "#h", 1, 2)
+assert(memory.tostring(eight) == "#hellboy")
