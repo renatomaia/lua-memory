@@ -26,19 +26,17 @@
 
 LUAMEMLIB_API char *(luamem_newalloc) (lua_State *L, size_t len);
 
-
 typedef void (*luamem_Unref) (lua_State *L, void *mem, size_t len);
-
-#define luamem_isref(L,I)	(luaL_testudata(L,I,LUAMEM_REF) != NULL)
 
 LUAMEMLIB_API void (luamem_newref) (lua_State *L);
 LUAMEMLIB_API int (luamem_setref) (lua_State *L, int idx,
                                    char *mem, size_t len, luamem_Unref unref);
 
+LUAMEMLIB_API int (luamem_type) (lua_State *L, int idx);
 
+#define luamem_ismemory(L,I)	(luamem_type(L,I) != LUAMEM_TNONE)
 #define luamem_tomemory(L,I,S)	(luamem_tomemoryx(L,I,S,NULL,NULL))
 
-LUAMEMLIB_API int (luamem_ismemory) (lua_State *L, int idx);
 LUAMEMLIB_API char *(luamem_tomemoryx) (lua_State *L, int idx,
                                         size_t *len, luamem_Unref *unref,
                                         int *type);

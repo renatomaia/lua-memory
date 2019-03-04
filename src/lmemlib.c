@@ -17,9 +17,6 @@ LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
 	return mem;
 }
 
-
-#define LUAMEM_REFREGISTRY	"luamem_ReferenceRegistry"
-
 typedef struct luamem_Ref {
 	char *mem;
 	size_t len;
@@ -61,44 +58,44 @@ LUAMEMLIB_API int luamem_setref (lua_State *L, int idx,
 	return 0;
 }
 
-
-LUAMEMLIB_API int luamem_ismemory (lua_State *L, int idx) {
-	int type;
-	luamem_tomemoryx(L, idx, NULL, NULL, &type);
-	return type != LUAMEM_TNONE;
+LUAMEMLIB_API int luamem_type (lua_State *L, int idx) {
+	int type = LUAMEM_TNONE;
+	if (lua_type(L, idx) == LUA_TUSERDATA) {
+		if (lua_getmetatable(L, idx)) {  /* does it have a metatable? */
+			luaL_getmetatable(L, LUAMEM_ALLOC);  /* get allocated memory metatable */
+			if (lua_rawequal(L, -1, -2)) type = LUAMEM_TALLOC;
+			else {
+				lua_pop(L, 1);  /* remove allocated memory metatable */
+				luaL_getmetatable(L, LUAMEM_REF);  /* get referenced memory metatable */
+				if (lua_rawequal(L, -1, -2)) type = LUAMEM_TREF;
+			}
+			lua_pop(L, 2);  /* remove both metatables */
+		}
+	}
+	return type;
 }
 
 LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
                                       size_t *len, luamem_Unref *unref,
                                       int *type) {
-	char *mem = NULL;
-	void *p = lua_touserdata(L, idx);
-	if (len) *len = 0;
-	if (unref) *unref = NULL;
-	if (type) *type = LUAMEM_TNONE;
-	if (p) {  /* value is a userdata? */
-		if (lua_getmetatable(L, idx)) {  /* does it have a metatable? */
-			luaL_getmetatable(L, LUAMEM_ALLOC);  /* get allocated memory metatable */
-			if (lua_rawequal(L, -1, -2)) {  /* is the same? */
-				lua_pop(L, 2);  /* remove both metatables */
-				mem = (char *)p;
-				if (len) *len = lua_rawlen(L, idx);
-				if (type) *type = LUAMEM_TALLOC;
-			} else {
-				lua_pop(L, 1);  /* remove allocated memory metatable */
-				luaL_getmetatable(L, LUAMEM_REF);  /* get referenced memory metatable */
-				if (lua_rawequal(L, -1, -2)) {
-					luamem_Ref *ref = (luamem_Ref *)p;
-					mem = ref->mem;
-					if (len) *len = ref->len;
-					if (unref) *unref = ref->unref;
-					if (type) *type = LUAMEM_TREF;
-				}
-				lua_pop(L, 2);  /* remove both metatables */
-			}
+	int typemem;
+	if (!type) type = &typemem;
+	*type = luamem_type(L, idx);
+	switch (*type) {
+		case LUAMEM_TALLOC:
+			if (len) *len = lua_rawlen(L, idx);
+			if (unref) *unref = NULL;
+			return (char *)lua_touserdata(L, idx);
+		case LUAMEM_TREF: {
+			luamem_Ref *ref = (luamem_Ref *)lua_touserdata(L, idx);
+			if (len) *len = ref->len;
+			if (unref) *unref = ref->unref;
+			return ref->mem;
 		}
 	}
-	return mem;
+	if (len) *len = 0;
+	if (unref) *unref = NULL;
+	return NULL;
 }
 
 LUAMEMLIB_API char *luamem_checkmemory (lua_State *L, int arg, size_t *len) {
@@ -116,8 +113,8 @@ LUAMEMLIB_API int luamem_isstring (lua_State *L, int idx) {
 LUAMEMLIB_API const char *luamem_tostring (lua_State *L, int idx, size_t *len) {
 	int type;
 	const char *s = luamem_tomemoryx(L, idx, len, NULL, &type);
-	if (type != LUAMEM_TNONE) return s;
-	return lua_tolstring(L, idx, len);
+	if (type == LUAMEM_TNONE) return lua_tolstring(L, idx, len);
+	return s;
 }
 
 LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,

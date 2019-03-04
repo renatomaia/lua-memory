@@ -1,20 +1,20 @@
 Index
 =====
 
-[Lua functions](#writable-byte-sequences)    | [C API](#c-library-api)                     | [C API](#c-library-api)                            
----------------------------------------------|---------------------------------------------|----------------------------------------------------
-[`memory.create`](#memorycreate-s--i--j)     | [`luamem_Unref`](#luamem_unref)             | [`luamem_pushresultfsize`](#luamem_pushresultfsize)
-[`memory.resize`](#memoryresize-m-l)         | [`luamem_addvalue`](#luamem_addvalue)       | [`luamem_realloc`](#luamem_realloc)                
-[`memory.type`](#memorytype-m)               | [`luamem_checklenarg`](#luamem_checklenarg) | [`luamem_setref`](#luamem_setref)                  
-[`memory.len`](#memorylen-m)                 | [`luamem_checkmemory`](#luamem_checkmemory) | [`luamem_tomemory`](#luamem_tomemory)              
-[`memory.diff`](#memorydiff-m1-m2)           | [`luamem_checkstring`](#luamem_checkstring) | [`luamem_tomemoryx`](#luamem_tomemoryx)            
-[`memory.get`](#memoryget-m--i--j)           | [`luamem_free`](#luamem_free)               | [`luamem_tostring`](#luamem_tostring)              
-[`memory.set`](#memoryset-m-i-)              | [`luamem_ismemory`](#luamem_ismemory)       |                                                    
-[`memory.fill`](#memoryfill-m-s--i--j--o)    | [`luamem_isref`](#luamem_isref)             | [`LUAMEM_ALLOC`](#luamem_newalloc)                 
-[`memory.find`](#memoryfind-m-s--i--j--o)    | [`luamem_isstring`](#luamem_isstring)       | [`LUAMEM_REF`](#luamem_newref)                     
-[`memory.pack`](#memorypack-m-fmt-i-v)       | [`luamem_newalloc`](#luamem_newalloc)       | [`LUAMEM_TALLOC`](#luamem_tomemoryx)               
-[`memory.unpack`](#memoryunpack-m-fmt--i)    | [`luamem_newref`](#luamem_newref)           | [`LUAMEM_TNONE`](#luamem_tomemoryx)                
-[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_pushresult`](#luamem_pushresult)   | [`LUAMEM_TREF`](#luamem_tomemoryx)                 
+[Lua functions](#writable-byte-sequences)    | [C API](#c-library-api)                            | [C API](#c-library-api)                
+---------------------------------------------|----------------------------------------------------|----------------------------------------
+[`memory.create`](#memorycreate-s--i--j)     | [`luamem_Unref`](#luamem_unref)                    | [`luamem_realloc`](#luamem_realloc)    
+[`memory.resize`](#memoryresize-m-l)         | [`luamem_addvalue`](#luamem_addvalue)              | [`luamem_setref`](#luamem_setref)      
+[`memory.type`](#memorytype-m)               | [`luamem_checklenarg`](#luamem_checklenarg)        | [`luamem_tomemory`](#luamem_tomemory)  
+[`memory.len`](#memorylen-m)                 | [`luamem_checkmemory`](#luamem_checkmemory)        | [`luamem_tomemoryx`](#luamem_tomemoryx)
+[`memory.diff`](#memorydiff-m1-m2)           | [`luamem_checkstring`](#luamem_checkstring)        | [`luamem_tostring`](#luamem_tostring)  
+[`memory.get`](#memoryget-m--i--j)           | [`luamem_free`](#luamem_free)                      | [`luamem_type`](#luamem_type)          
+[`memory.set`](#memoryset-m-i-)              | [`luamem_ismemory`](#luamem_ismemory)              |                                        
+[`memory.fill`](#memoryfill-m-s--i--j--o)    | [`luamem_isstring`](#luamem_isstring)              | [`LUAMEM_ALLOC`](#luamem_newalloc)     
+[`memory.find`](#memoryfind-m-s--i--j--o)    | [`luamem_newalloc`](#luamem_newalloc)              | [`LUAMEM_REF`](#luamem_newref)         
+[`memory.pack`](#memorypack-m-fmt-i-v)       | [`luamem_newref`](#luamem_newref)                  | [`LUAMEM_TALLOC`](#luamem_tomemoryx)   
+[`memory.unpack`](#memoryunpack-m-fmt--i)    | [`luamem_pushresult`](#luamem_pushresult)          | [`LUAMEM_TNONE`](#luamem_tomemoryx)    
+[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_pushresultfsize`](#luamem_pushresultfsize)| [`LUAMEM_TREF`](#luamem_tomemoryx)     
 
 Contents
 ========
@@ -73,6 +73,9 @@ Both `m1` and `m2` shall be memory or string.
 
 Searches in memory or string `m` from position `i` until `j` for the contents of the memory or string `s` from position `o` of `s`;
 `i`, `j` and `o` can be negative.
+The default value for `i` and `o` is 1;
+the default value for `j` is -1 (which is the same as the size of `s`).
+These indices are corrected following the same rules of function [`memory.get`](#memoryget-m-i-j).
 
 If, after the translation of negative indices, `o` is less than 1, it is corrected to 1.
 After the translation of negative indices, `i` and `j` must refer to valid positions of `m`.
@@ -115,7 +118,7 @@ The value of `o` is ignored in this case.
 Returns a string with the contents of memory or string `m` from `i` until `j`;
 `i` and `j` can be negative.
 The default value for `i` is 1;
-the default value for `j` is `i`.
+the default value for `j` is -1 (which is the same as the size of `m`).
 
 ### `memory.pack (m, fmt, i, v...)`
 
@@ -187,13 +190,13 @@ char *mem = luamem_tomemory(L, idx, &len);
 luamem_setref(L, idx, mem, len, NULL);  /* only update `unref` to NULL */
 ```
 
-### `luamem_isref`
+### `luamem_type`
 
 ```C
-int luamem_isref(lua_State *L, int idx);
+int luamem_type(lua_State *L, int idx);
 ```
 
-Returns 1 if the value at the given index is a referenced memory, and 0 otherwise. 
+Returns `LUAMEM_TREF` if the value at the given index is a referenced memory, or `LUAMEM_TALLOC` in case of an allocated memory, or `LUAMEM_TNONE` otherwise.
 
 ### `luamem_ismemory`
 
@@ -221,7 +224,7 @@ Return the block address of memory at the given index, or `NULL` if the value is
 
 If `len` is not `NULL`, it sets `*len` with the memory size.
 If `unref` is not `NULL`, it sets `*unref` with the unrefering function if the value is a referenced memory, or `NULL` otherwise.
-If `type` is not `NULL`, it sets `*type` with `LUAMEM_TREF` if the value is  referenced memory, or `LUAMEM_TALLOC` in case of an allocated memory, or `LUAMEM_TNONE` otherwise.
+If `type` is not `NULL`, it sets `*type` with `LUAMEM_TREF` if the value is referenced memory, or `LUAMEM_TALLOC` in case of an allocated memory, or `LUAMEM_TNONE` otherwise.
 
 Because Lua has garbage collection, there is no guarantee that the pointer returned by `luamem_tomemory` will be valid after the corresponding Lua value is removed from the stack.
 
