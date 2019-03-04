@@ -5,7 +5,7 @@ local maxi, mini = math.maxinteger, math.mininteger
 
 local function checkerror(msg, f, ...)
   local s, err = pcall(f, ...)
-  assert(not s and string.find(err, msg))
+  assert(not s and string.find(err, msg), err)
 end
 
 -- memory.type(string), memory:set(i, d), memory:get(i)
@@ -254,7 +254,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 
 end
 
-do print "memory.resize(m, size)"
+do print "memory.resize(m, size [, s])"
 	local m = memory.create(3)
 	checkerror("resizable memory expected", memory.resize, m, 10)
 
@@ -274,6 +274,24 @@ do print "memory.resize(m, size)"
 
 	memory.resize(m, 0)
 	assert(tostring(m) == "")
+
+	memory.resize(m, 5, "abcde")
+	assert(tostring(m) == "abcde")
+
+	memory.resize(m, 10, "xyz")
+	assert(tostring(m) == "abcdexyzxy")
+
+	memory.resize(m, 5, "123")
+	assert(tostring(m) == "abcde")
+
+	memory.resize(m, 10, "")
+	assert(tostring(m) == "abcde\0\0\0\0\0")
+
+	checkerror("string or memory expected", memory.resize, m, 15, table)
+	assert(tostring(m) == "abcde\0\0\0\0\0")
+
+	checkerror("string or memory expected", memory.resize, m, 0, table)
+	assert(tostring(m) == "abcde\0\0\0\0\0")
 end
 
 print "OK"

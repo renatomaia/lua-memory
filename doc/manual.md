@@ -4,7 +4,7 @@ Index
 [Lua functions](#writable-byte-sequences)    | [C API](#c-library-api)                            | [C API](#c-library-api)                
 ---------------------------------------------|----------------------------------------------------|----------------------------------------
 [`memory.create`](#memorycreate-s--i--j)     | [`luamem_Unref`](#luamem_unref)                    | [`luamem_realloc`](#luamem_realloc)    
-[`memory.resize`](#memoryresize-m-l)         | [`luamem_addvalue`](#luamem_addvalue)              | [`luamem_setref`](#luamem_setref)      
+[`memory.resize`](#memoryresize-m-l--s)      | [`luamem_addvalue`](#luamem_addvalue)              | [`luamem_setref`](#luamem_setref)      
 [`memory.type`](#memorytype-m)               | [`luamem_checklenarg`](#luamem_checklenarg)        | [`luamem_tomemory`](#luamem_tomemory)  
 [`memory.len`](#memorylen-m)                 | [`luamem_checkmemory`](#luamem_checkmemory)        | [`luamem_tomemoryx`](#luamem_tomemoryx)
 [`memory.diff`](#memorydiff-m1-m2)           | [`luamem_checkstring`](#luamem_checkstring)        | [`luamem_tostring`](#luamem_tostring)  
@@ -47,11 +47,11 @@ If `s` is not provided, a resizable memory of zero bytes is created.
 
 Returns the new memory.
 
-### `memory.resize (m, l)`
+### `memory.resize (m, l [, s])`
 
 Changes resizable memory `m` to contain `l` bytes.
 All the initial bytes that fit in the new size are preserved.
-Any extra bytes have value zero.
+Any extra bytes are set with the contents of string `s` if provided, or they are set to value zero otherwise.
 
 ### `memory.type (m)`
 

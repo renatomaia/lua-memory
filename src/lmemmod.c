@@ -39,10 +39,19 @@ static int mem_create (lua_State *L) {
 			}
 		}
 		p = luamem_newalloc(L, len);
-		if (s) memcpy(p, s, len * sizeof(char));
-		else memset(p, 0, len * sizeof(char));
+		if (s) memcpy(p, s, len*sizeof(char));
+		else memset(p, 0, len*sizeof(char));
 	}
 	return 1;
+}
+
+static void memfill (char *mem, size_t size, const char *s, size_t len) {
+	do {
+		size_t n = size < len ? size : len;
+		memmove(mem, s, n * sizeof(char));
+		mem += n;
+		size -= n;
+	} while (size > 0);
 }
 
 static int mem_resize (lua_State *L) {
@@ -52,11 +61,17 @@ static int mem_resize (lua_State *L) {
 	size_t size = luamem_checklenarg(L, 2);
 	luaL_argcheck(L, unref == luamem_free, 1, "resizable memory expected");
 	if (len != size) {
+		size_t sl, n = len < size ? size-len : 0;
+		const char *s = luamem_optstring(L, 3, NULL, &sl);
 		char *resized = (char *)luamem_realloc(L, mem, len, size);
 		if (size && !resized) luaL_error(L, "out of memory");
 		luamem_setref(L, 1, mem, len, NULL);  /* don't free `mem` again */
-		if (len < size) memset(resized+len, 0, (size-len)*sizeof(char));
 		luamem_setref(L, 1, resized, size, luamem_free);
+		if (n) {
+			resized += len;
+			if (sl) memfill(resized, n, s, sl);
+			else memset(resized, 0, n*sizeof(char));
+		}
 	}
 	return 0;
 }
@@ -184,14 +199,7 @@ static int mem_fill (lua_State *L) {
 		if (i+(lua_Integer)n <= j)  /* arithmetic overflow? */
 			return luaL_error(L, "string slice too long");
 		--os;
-		s += os;
-		sl -= os;
-		do {
-			size_t sz = n < sl ? n : sl;
-			memmove(p+i-1, s, sz * sizeof(char));
-			i += sz;
-			n -= sz;
-		} while (i <= j);
+		memfill(p+i-1, n, s+os, sl-os);
 	}
 	return 0;
 }
