@@ -2,6 +2,8 @@
 
 #include "lmemlib.h"
 
+#include <ctype.h>
+#include <locale.h>
 #include <string.h>
 #include <lualib.h>
 
@@ -204,6 +206,7 @@ static int mem_fill (lua_State *L) {
 	return 0;
 }
 
+static int mem_format (lua_State *L);
 static int mem_pack (lua_State *L);
 static int mem_unpack (lua_State *L);
 
@@ -217,6 +220,7 @@ static const luaL_Reg lib[] = {
 	{"fill", mem_fill},
 	{"get", mem_get},
 	{"set", mem_set},
+	{"format", mem_format},
 	{"pack", mem_pack},
 	{"unpack", mem_unpack},
 	{"tostring", mem_tostring},
@@ -334,6 +338,405 @@ static const char *lmemfind (const char *s1, size_t l1,
 		return NULL;  /* not found */
 	}
 }
+
+/*
+** {======================================================
+** STRING FORMAT
+** =======================================================
+*/
+
+#if !defined(lua_number2strx)	/* { */
+
+/*
+** Hexadecimal floating-point formatter
+*/
+
+#include <math.h>
+
+#define SIZELENMOD	(sizeof(LUA_NUMBER_FRMLEN)/sizeof(char))
+
+
+/*
+** Number of bits that goes into the first digit. It can be any value
+** between 1 and 4; the following definition tries to align the number
+** to nibble boundaries by making what is left after that first digit a
+** multiple of 4.
+*/
+#define L_NBFD		((l_mathlim(MANT_DIG) - 1)%4 + 1)
+
+
+/*
+** Add integer part of 'x' to buffer and return new 'x'
+*/
+static lua_Number adddigit (char *buff, int n, lua_Number x) {
+	lua_Number dd = l_mathop(floor)(x);  /* get integer part from 'x' */
+	int d = (int)dd;
+	buff[n] = (d < 10 ? d + '0' : d - 10 + 'a');  /* add to buffer */
+	return x - dd;  /* return what is left */
+}
+
+
+static int num2straux (char *buff, int sz, lua_Number x) {
+	/* if 'inf' or 'NaN', format it like '%g' */
+	if (x != x || x == (lua_Number)HUGE_VAL || x == -(lua_Number)HUGE_VAL)
+		return l_sprintf(buff, sz, LUA_NUMBER_FMT, (LUAI_UACNUMBER)x);
+	else if (x == 0) {  /* can be -0... */
+		/* create "0" or "-0" followed by exponent */
+		return l_sprintf(buff, sz, LUA_NUMBER_FMT "x0p+0", (LUAI_UACNUMBER)x);
+	}
+	else {
+		int e;
+		lua_Number m = l_mathop(frexp)(x, &e);  /* 'x' fraction and exponent */
+		int n = 0;  /* character count */
+		if (m < 0) {  /* is number negative? */
+			buff[n++] = '-';  /* add signal */
+			m = -m;  /* make it positive */
+		}
+		buff[n++] = '0'; buff[n++] = 'x';  /* add "0x" */
+		m = adddigit(buff, n++, m * (1 << L_NBFD));  /* add first digit */
+		e -= L_NBFD;  /* this digit goes before the radix point */
+		if (m > 0) {  /* more digits? */
+			buff[n++] = lua_getlocaledecpoint();  /* add radix point */
+			do {  /* add as many digits as needed */
+				m = adddigit(buff, n++, m * 16);
+			} while (m > 0);
+		}
+		n += l_sprintf(buff + n, sz - n, "p%+d", e);  /* add exponent */
+		lua_assert(n < sz);
+		return n;
+	}
+}
+
+
+static int lua_number2strx (lua_State *L, char *buff, int sz,
+                            const char *fmt, lua_Number x) {
+	int n = num2straux(buff, sz, x);
+	if (fmt[SIZELENMOD] == 'A') {
+		int i;
+		for (i = 0; i < n; i++)
+			buff[i] = toupper(uchar(buff[i]));
+	}
+	else if (fmt[SIZELENMOD] != 'a')
+		luaL_error(L, "modifiers for format '%%a'/'%%A' not implemented");
+	return n;
+}
+
+#endif				/* } */
+
+
+#if !defined(LUA_USE_C89)
+
+#define lmem_sprintf(s,sz,f,i)	l_sprintf(s,sz,f,i)
+#define lmem_number2strx(L,b,sz,f,x)	lua_number2strx(L,b,sz,f,x)
+
+#else
+
+/*
+** Maximum size of each formatted item. This maximum size is produced
+** by format('%.99f', -maxfloat), and is equal to 99 + 3 ('-', '.',
+** and '\0') + number of decimal digits to represent maxfloat (which
+** is maximum exponent + 1). (99+3+1 then rounded to 120 for "extra
+** expenses", such as locale-dependent stuff)
+*/
+#define MAX_ITEM        (120 + l_mathlim(MAX_10_EXP))
+
+static int lmem_sprintf(char *s, size_t sz, const char *fmt, ...) {
+	va_list argp;
+	int n;
+	char tmp[MAX_ITEM], *dst = sz < MAX_ITEM ? tmp : s;
+	va_start(argp, fmt);
+	n = sprintf(dst, fmt, va_arg(argp, void *));
+	va_end(argp);
+	if (dst == tmp) memcpy(s, tmp, sz < n ? sz : n);
+	return n;
+}
+
+static int lmem_number2strx (lua_State *L, char *buff, int sz,
+                            const char *fmt, lua_Number x) {
+	char tmp[MAX_ITEM], *dst = sz < MAX_ITEM ? tmp : s;
+	int n = lua_number2strx(L, *buff, sz, fmt, x);
+	if (dst == tmp) memcpy(s, tmp, sz < n ? sz : n);
+	return n;
+}
+
+#endif
+
+
+#define L_ESC		'%'
+
+/* valid flags in a format specification */
+#define FLAGS	"-+ #0"
+
+/*
+** maximum size of each format specification (such as "%-099.99d")
+*/
+#define MAX_FORMAT	32
+
+
+static int packnum2strx (lua_State *L, char **b, size_t *i, size_t lb,
+                         const char *fmt, lua_Number x) {
+	if (*i < lb) {
+		size_t sz = lb-*i;
+		int n = lmem_number2strx(L, *b, sz, fmt, x);
+		if (n <= sz) {
+			*i += n;
+			*b += n;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+static int packfmt (char **b, size_t *i, size_t lb, const char *fmt, ...) {
+	if (*i < lb) {
+		size_t n, sz = lb-*i;
+		va_list argp;
+		va_start(argp, fmt);
+		n = lmem_sprintf(*b, sz, fmt, va_arg(argp, void *));
+		va_end(argp);
+		if (n <= sz) {
+			*i += n;
+			*b += n;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+static int packchar (char **b, size_t *i, size_t lb, const char c) {
+	if (*i<lb) {
+		(void)*i++;
+		*(*b++) = c;
+		return 1;
+	}
+	return 0;
+}
+
+
+static char *getbytes (char **b, size_t *i, size_t lb, size_t sz) {
+	size_t newtotal = *i+sz;
+	if (newtotal<=lb) {
+		char *res = *b;
+		*b += sz;
+		*i = newtotal;
+		return res;
+	}
+	return NULL;
+}
+
+
+static int packstream (char **b, size_t *i, size_t lb,
+                       const char *s, size_t sl) {
+	if (sl > 0) {  /* avoid 'memcpy' when 's' can be NULL */
+		char *d = getbytes(b, i, lb, sl);
+		if (d == NULL) return 0;
+		memcpy(d, s, sl * sizeof(char));
+	}
+	return 1;
+}
+
+
+static int packquoted (char **b, size_t *i, size_t lb,
+                      const char *s, size_t len) {
+	if (!packchar(b, i, lb, '"')) return 0;
+	while (len--) {
+		int res;
+		if (*s == '"' || *s == '\\' || *s == '\n')
+			res = packchar(b, i, lb, '\\') && packchar(b, i, lb, *s);
+		else if (iscntrl(uchar(*s)))
+			if (!isdigit(uchar(*(s+1))))
+				res = packfmt(b, i, lb, "\\%d", (int)uchar(*s));
+			else
+				res = packfmt(b, i, lb, "\\%03d", (int)uchar(*s));
+		else
+			res = packchar(b, i, lb, *s);
+		if (!res) return 0;
+		s++;
+	}
+	return packchar(b, i, lb, '"');
+}
+
+
+/*
+** Ensures the 'buff' string uses a dot as the radix character.
+*/
+static void checkdp (char *buff, int nb) {
+	if (memchr(buff, '.', nb) == NULL) {  /* no dot? */
+		char point = lua_getlocaledecpoint();  /* try locale point */
+		char *ppoint = (char *)memchr(buff, point, nb);
+		if (ppoint) *ppoint = '.';  /* change it to a dot */
+	}
+}
+
+
+static int packliteral (lua_State *L, char **b, size_t *i, size_t lb, int arg) {
+	switch (lua_type(L, arg)) {
+		case LUA_TSTRING: {
+			size_t len;
+			const char *s = lua_tolstring(L, arg, &len);
+			return packquoted(b, i, lb, s, len);
+		}
+		case LUA_TNUMBER: {
+			if (!lua_isinteger(L, arg)) {  /* float? */
+				lua_Number n = lua_tonumber(L, arg);  /* write as hexa ('%a') */
+				size_t offset = *i;
+				char *buffer = *b+offset;
+				int res = packnum2strx(L, b, i, lb, "%" LUA_NUMBER_FRMLEN "a", n);
+				checkdp(buffer, *i-offset);  /* ensure it uses a dot */
+				return res;
+			}
+			else {  /* integers */
+				lua_Integer n = lua_tointeger(L, arg);
+				const char *format = (n == LUA_MININTEGER)  /* corner case? */
+				                   ? "0x%" LUA_INTEGER_FRMLEN "x"  /* use hexa */
+				                   : LUA_INTEGER_FMT;  /* else use default format */
+				return packfmt(b, i, lb, format, (LUAI_UACINT)n);
+			}
+		}
+		case LUA_TNIL: case LUA_TBOOLEAN: {
+			size_t len;
+			const char *s = luaL_tolstring(L, arg, &len);
+			return packstream(b, i, lb, s, len);
+		}
+		case LUA_TUSERDATA: {
+			size_t len;
+			int type;
+			const char *s = luamem_tomemoryx(L, arg, &len, NULL, &type);
+			if (type != LUAMEM_TNONE) return packquoted(b, i, lb, s, len);
+		}
+	}
+	return luaL_argerror(L, arg, "value has no literal form");
+}
+
+static int packfailed (lua_State *L, size_t i, size_t arg) {
+	lua_pushboolean(L, 0);
+	lua_replace(L, arg-2);
+	lua_pushinteger(L, i+1);
+	lua_replace(L, arg-1);
+	return 3+lua_gettop(L)-arg;
+}
+
+
+static const char *scanformat (lua_State *L, const char *strfrmt, char *form) {
+	const char *p = strfrmt;
+	while (*p != '\0' && strchr(FLAGS, *p) != NULL) p++;  /* skip flags */
+	if ((size_t)(p - strfrmt) >= sizeof(FLAGS)/sizeof(char))
+		luaL_error(L, "invalid format (repeated flags)");
+	if (isdigit(uchar(*p))) p++;  /* skip width */
+	if (isdigit(uchar(*p))) p++;  /* (2 digits at most) */
+	if (*p == '.') {
+		p++;
+		if (isdigit(uchar(*p))) p++;  /* skip precision */
+		if (isdigit(uchar(*p))) p++;  /* (2 digits at most) */
+	}
+	if (isdigit(uchar(*p)))
+		luaL_error(L, "invalid format (width or precision too long)");
+	*(form++) = '%';
+	memcpy(form, strfrmt, ((p - strfrmt) + 1) * sizeof(char));
+	form += (p - strfrmt) + 1;
+	*form = '\0';
+	return p;
+}
+
+
+/*
+** add length modifier into formats
+*/
+static void addlenmod (char *form, const char *lenmod) {
+	size_t l = strlen(form);
+	size_t lm = strlen(lenmod);
+	char spec = form[l - 1];
+	strcpy(form + l - 1, lenmod);
+	form[l + lm - 1] = spec;
+	form[l + lm] = '\0';
+}
+
+
+static int mem_format (lua_State *L) {
+	int top = lua_gettop(L);
+	int arg = 1;
+	size_t i, lb, sfl;
+	char *mem = luamem_checkmemory(L, arg, &lb);
+	const char *strfrmt = luaL_checklstring(L, ++arg, &sfl);
+	const char *strfrmt_end = strfrmt+sfl;
+	lua_Integer pos = posrelat(luaL_checkinteger(L, ++arg), lb) - 1;
+	luaL_argcheck(L, 0 <= pos && pos <= (lua_Integer)lb-1, arg,
+		"index out of bounds");
+	i = (size_t)pos;
+	mem += i;
+	while (strfrmt < strfrmt_end) {
+		int res;
+		if (*strfrmt != L_ESC)
+			res = packchar(&mem, &i, lb, *strfrmt++);
+		else if (*++strfrmt == L_ESC)  /* %% */
+			res = packchar(&mem, &i, lb, *strfrmt++);
+		else { /* format item */
+			char form[MAX_FORMAT];  /* to store the format ('%...') */
+			if (++arg > top) luaL_argerror(L, arg, "no value");
+			strfrmt = scanformat(L, strfrmt, form);
+			switch (*strfrmt++) {
+				case 'c': {
+					res = packfmt(&mem, &i, lb, form, (int)luaL_checkinteger(L, arg));
+					break;
+				}
+				case 'd': case 'i':
+				case 'o': case 'u': case 'x': case 'X': {
+					lua_Integer n = luaL_checkinteger(L, arg);
+					addlenmod(form, LUA_INTEGER_FRMLEN);
+					res = packfmt(&mem, &i, lb, form, (LUAI_UACINT)n);
+					break;
+				}
+				case 'a': case 'A': {
+					addlenmod(form, LUA_NUMBER_FRMLEN);
+					res = packnum2strx(L, &mem, &i, lb, form, luaL_checknumber(L, arg));
+					break;
+				}
+				case 'e': case 'E': case 'f':
+				case 'g': case 'G': {
+					lua_Number n = luaL_checknumber(L, arg);
+					addlenmod(form, LUA_NUMBER_FRMLEN);
+					res = packfmt(&mem, &i, lb, form, (LUAI_UACNUMBER)n);
+					break;
+				}
+				case 'q': {
+					res = packliteral(L, &mem, &i, lb, arg);
+					break;
+				}
+				case 's': {
+					size_t l;
+					const char *s = luaL_tolstring(L, arg, &l);
+					if (form[2] == '\0')  /* no modifiers? */
+						res = packstream(&mem, &i, lb, s, l);  /* keep entire string */
+					else {
+						luaL_argcheck(L, l == strlen(s), arg, "string contains zeros");
+						if (!strchr(form, '.') && l >= 100) {
+							/* no precision and string is too long to be formatted */
+							res = packstream(&mem, &i, lb, s, l);  /* keep entire string */
+						} else {
+							/* format the string into 'buff' */
+							res = packfmt(&mem, &i, lb, form, s);
+						}
+					}
+					lua_pop(L, 1);  /* remove result from 'luaL_tolstring' */
+					break;
+				}
+				default: {  /* also treat cases 'pnLlh' */
+					return luaL_error(L, "invalid option '%%%c' to 'format'",
+					                     *(strfrmt - 1));
+				}
+			}
+		}
+		if (!res) return packfailed(L, i, arg);
+	}
+	lua_pushboolean(L, 1);
+	lua_pushinteger(L, i+1);
+	return 2;
+}
+
+/* }====================================================== */
+
 
 /*
 ** {======================================================
@@ -522,45 +925,6 @@ static KOption getdetails (Header *h, size_t totalsize,
 		*ntoalign = (align - (int)(totalsize & (align - 1))) & (align - 1);
 	}
 	return opt;
-}
-
-
-static char *getbytes (char **b, size_t *i, size_t lb, size_t sz) {
-	size_t newtotal = *i+sz;
-	if (newtotal<=lb) {
-		char *res = *b;
-		*b += sz;
-		*i = newtotal;
-		return res;
-	}
-	return NULL;
-}
-
-static int packfailed (lua_State *L, size_t i, size_t arg) {
-	lua_pushboolean(L, 0);
-	lua_replace(L, arg-2);
-	lua_pushinteger(L, i+1);
-	lua_replace(L, arg-1);
-	return 3+lua_gettop(L)-arg;
-}
-
-static int packchar (char **b, size_t *i, size_t lb, const char c) {
-	if (*i<lb) {
-		(void)*i++;
-		*(*b++) = c;
-		return 1;
-	}
-	return 0;
-}
-
-static int packstream (char **b, size_t *i, size_t lb,
-                       const char *s, size_t sl) {
-	if (sl > 0) {  /* avoid 'memcpy' when 's' can be NULL */
-		char *d = getbytes(b, i, lb, sl);
-		if (d == NULL) return 0;
-		memcpy(d, s, sl * sizeof(char));
-	}
-	return 1;
 }
 
 
