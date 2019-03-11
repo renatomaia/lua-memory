@@ -506,7 +506,7 @@ static int packfmt (char **b, size_t *i, size_t lb, const char *fmt, ...) {
 
 
 static int packchar (char **b, size_t *i, size_t lb, const char c) {
-	if (*i<lb) {
+	if (*i < lb) {
 		(void)*i++;
 		*(*b++) = c;
 		return 1;
@@ -517,7 +517,7 @@ static int packchar (char **b, size_t *i, size_t lb, const char c) {
 
 static char *getbytes (char **b, size_t *i, size_t lb, size_t sz) {
 	size_t newtotal = *i+sz;
-	if (newtotal<=lb) {
+	if (newtotal < lb) {
 		char *res = *b;
 		*b += sz;
 		*i = newtotal;
@@ -544,7 +544,7 @@ static int packquoted (char **b, size_t *i, size_t lb,
 	while (len--) {
 		int res;
 		if (*s == '"' || *s == '\\' || *s == '\n')
-			res = packchar(b, i, lb, '\\') && packchar(b, i, lb, *s);
+			if (res = packchar(b, i, lb, '\\')) res = packchar(b, i, lb, *s);
 		else if (iscntrl(uchar(*s)))
 			if (!isdigit(uchar(*(s+1))))
 				res = packfmt(b, i, lb, "\\%d", (int)uchar(*s));
@@ -598,7 +598,9 @@ static int packliteral (lua_State *L, char **b, size_t *i, size_t lb, int arg) {
 		case LUA_TNIL: case LUA_TBOOLEAN: {
 			size_t len;
 			const char *s = luaL_tolstring(L, arg, &len);
-			return packstream(b, i, lb, s, len);
+			int res = packstream(b, i, lb, s, len);
+			lua_pop(L, 1);  /* remove result from 'luaL_tolstring' */
+			return res;
 		}
 		case LUA_TUSERDATA: {
 			size_t len;
@@ -701,7 +703,13 @@ static int mem_format (lua_State *L) {
 					break;
 				}
 				case 'q': {
+
+printf("packliteral(L, mem, %ld, %ld, arg)\n", i, lb);
+
 					res = packliteral(L, &mem, &i, lb, arg);
+
+printf("           i=%ld lb=%ld res=%d\n", i, lb, res);
+
 					break;
 				}
 				case 's': {
