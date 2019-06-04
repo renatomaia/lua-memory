@@ -14,7 +14,7 @@ Index
 [`memory.find`](#memoryfind-m-s--i--j--o)    | [`luamem_newalloc`](#luamem_newalloc)              | [`LUAMEM_REF`](#luamem_newref)         
 [`memory.pack`](#memorypack-m-fmt-i-v)       | [`luamem_newref`](#luamem_newref)                  | [`LUAMEM_TALLOC`](#luamem_tomemoryx)   
 [`memory.unpack`](#memoryunpack-m-fmt--i)    | [`luamem_pushresult`](#luamem_pushresult)          | [`LUAMEM_TNONE`](#luamem_tomemoryx)    
-[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_pushresultfsize`](#luamem_pushresultfsize)| [`LUAMEM_TREF`](#luamem_tomemoryx)     
+[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_pushresultsize`](#luamem_pushresultsize)| [`LUAMEM_TREF`](#luamem_tomemoryx)     
 
 Contents
 ========
@@ -310,10 +310,10 @@ void luamem_pushresult (luaL_Buffer *B);
 
 Similar to [`luamem_pushresult`](http://www.lua.org/manual/5.3/manual.html#luaL_pushresult), but leaves a memory with the buffer contents on the top of the stack instead of a string.
 
-### `luamem_pushresultfsize`
+### `luamem_pushresultsize`
 
 ```C
-void luamem_pushresbufsize (luaL_Buffer *B, size_t sz);
+void luamem_pushresultsize (luaL_Buffer *B, size_t sz);
 ```
 
 Equivalent to the sequence [`luaL_addsize`](http://www.lua.org/manual/5.3/manual.html#luaL_addsize), [`luamem_pushresult`](#luamem_pushresult).
