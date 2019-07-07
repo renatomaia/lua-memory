@@ -294,6 +294,14 @@ do
 
   checkerror("contains zeros", pack, b, "z", 1, "alo\0");
 
+  local nonzeroterm = memory.create()
+  memory.resize(nonzeroterm, 3003, "abc")
+  memory.set(nonzeroterm, -1, 0)
+  memory.resize(nonzeroterm, 3000)
+  local fmt = "z"..string.rep("x", sizesize_t-1)
+  assertpack(sz, 1, pack(b, fmt, 1, nonzeroterm));
+  assertunpack(sz, {tostring(nonzeroterm)}, unpack(b, fmt, 1));
+
   for i = 2, NB do
     local b = memory.create(#s+i)
     pack(b, "s"..i, 1, s)

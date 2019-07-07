@@ -680,7 +680,8 @@ static int mem_pack (lua_State *L) {
 			case Kzstr: {  /* zero-terminated string */
 				size_t len;
 				const char *s = luamem_checkstring(L, arg, &len);
-				luaL_argcheck(L, strlen(s) == len, arg, "string contains zeros");
+				luaL_argcheck(L, memchr(s, '\0', len) == NULL, arg,
+				                 "string contains zeros");
 				if (!packstream(&mem, &i, lb, s, len) || !packchar(&mem, &i, lb, '\0'))
 					return packfailed(L, i, arg);
 				break;
