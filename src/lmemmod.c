@@ -546,8 +546,8 @@ static int packfailed (lua_State *L, size_t i, size_t arg) {
 
 static int packchar (char **b, size_t *i, size_t lb, const char c) {
 	if (*i<lb) {
-		(void)*i++;
-		*(*b++) = c;
+		(void)(*i)++;
+		*((*b)++) = c;
 		return 1;
 	}
 	return 0;
@@ -612,9 +612,9 @@ static int mem_pack (lua_State *L) {
 	size_t i, lb;
 	char *mem = luamem_checkmemory(L, 1, &lb);
 	const char *fmt = luaL_checkstring(L, 2);  /* format string */
-	lua_Integer pos = posrelat(luaL_checkinteger(L, 3), lb) - 1;
+	lua_Integer pos = posrelat(luaL_checkinteger(L, 3), lb)-1;
 	int arg = 3;  /* current argument to pack */
-	luaL_argcheck(L, 0 <= pos && pos <= (lua_Integer)lb-1, 3,
+	luaL_argcheck(L, 0 <= pos && pos <= (lua_Integer)lb, 3,
 		"index out of bounds");
 	initheader(L, &h);
 	i = (size_t)pos;

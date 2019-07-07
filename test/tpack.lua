@@ -3,34 +3,6 @@ local pack = memory.pack
 local packsize = string.packsize
 local unpack = memory.unpack
 
-do
-  local function failpack(expectpos, expectvals, ok, pos, ...)
-    assert(ok == false)
-    assert(pos == expectpos)
-    for i, value in ipairs(expectvals) do
-      assert(value == select(i, ...))
-    end
-    assert(select("#", ...) == #expectvals)
-  end
-
-  local m = memory.create(0)
-  failpack(1, {123,456,789}, pack(m, "b", 1, 123,456,789))
-
-  local m = memory.create(10)
-  memory.fill(m, 0x55)
-  local values = {
-    0x11111111,
-    0x22222222,
-    0x33333333,
-    0x44444444,
-  }
-  local expectvals = {
-    0x33333333,
-    0x44444444,
-  }
-  failpack(9, expectvals, pack(m, "i4i4i4i4", 1, table.unpack(values)))
-end
-
 --[[
 NOTE: most of the code below is copied from the tests of Lua 5.3.1 by
       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
@@ -95,7 +67,7 @@ end
 
 local function assertpack(sz, n, ok, pos, ...)
 	assert(ok == true)
-	assert(pos == sz+1)
+	assert(pos == sz+n)
 	assert(select("#", ...) == 0)
 end
 
@@ -212,7 +184,7 @@ end
 print("mixed endianness")
 do
   local b = memory.create(4)
-  assertpack(4, 2, pack(b, ">i2 <i2", 1, 10, 20))
+  assertpack(4, 1, pack(b, ">i2 <i2", 1, 10, 20))
   assert(tostring(b) == "\0\10\20\0")
   memory.fill(b, "\10\0\0\20")
   assertunpack(4, {10, 20}, unpack(b, "<i2 >i2"))
@@ -272,154 +244,172 @@ end
 do
   local b1 = memory.create(sizefloat)
   local b2 = memory.create(sizefloat)
-  pack(b1, "f", 1, 24)
+  assertpack(sizefloat, 1, pack(b1, "f", 1, 24))
   if little then
-    pack(b2, "<f", 1, 24)
+    assertpack(sizefloat, 1, pack(b2, "<f", 1, 24))
   else
-    pack(b2, ">f", 1, 24)
+    assertpack(sizefloat, 1, pack(b2, ">f", 1, 24))
   end
   assert(tostring(b1) == tostring(b2))
 end
 
-do return print("OK") end
+do print "testing pack/unpack of floating-point numbers" 
+  local bn = memory.create(sizenumber)
+  local bf = memory.create(sizefloat)
+  local bd = memory.create(sizedouble)
 
-print "testing pack/unpack of floating-point numbers" 
-for _, n in ipairs{0, -1.1, 1.9, 1/0, -1/0, 1e20, -1e20, 0.1, 2000.7} do
-    assert(unpack("n", pack("n", n)) == n)
-    assert(unpack("<n", pack("<n", n)) == n)
-    assert(unpack(">n", pack(">n", n)) == n)
-    assert(pack("<f", n) == pack(">f", n):reverse())
-    assert(pack(">d", n) == pack("<d", n):reverse())
-end
+  for _, n in ipairs{0, -1.1, 1.9, 1/0, -1/0, 1e20, -1e20, 0.1, 2000.7} do
+    assertpack(sizenumber, 1, pack(bn, "n", 1, n)); assertunpack(sizenumber, {n}, unpack(bn, "n", 1))
+    assertpack(sizenumber, 1, pack(bn, "<n", 1, n)); assertunpack(sizenumber, {n}, unpack(bn, "<n", 1))
+    assertpack(sizenumber, 1, pack(bn, ">n", 1, n)); assertunpack(sizenumber, {n}, unpack(bn, ">n", 1))
+    assertpack(sizefloat, 1, pack(bf, "<f", 1, n)); assert(tostring(bf) == string.pack(">f", n):reverse())
+    assertpack(sizedouble, 1, pack(bd, ">d", 1, n)); assert(tostring(bd) == string.pack("<d", n):reverse())
+  end
 
--- for non-native precisions, test only with "round" numbers
-for _, n in ipairs{0, -1.5, 1/0, -1/0, 1e10, -1e9, 0.5, 2000.25} do
-  assert(unpack("<f", pack("<f", n)) == n)
-  assert(unpack(">f", pack(">f", n)) == n)
-  assert(unpack("<d", pack("<d", n)) == n)
-  assert(unpack(">d", pack(">d", n)) == n)
+  -- for non-native precisions, test only with "round" numbers
+  for _, n in ipairs{0, -1.5, 1/0, -1/0, 1e10, -1e9, 0.5, 2000.25} do
+    assertpack(sizefloat, 1, pack(bf, "<f", 1, n)); assertunpack(sizefloat, {n}, unpack(bf, "<f", 1))
+    assertpack(sizefloat, 1, pack(bf, ">f", 1, n)); assertunpack(sizefloat, {n}, unpack(bf, ">f", 1))
+    assertpack(sizedouble, 1, pack(bd, "<d", 1, n)); assertunpack(sizedouble, {n}, unpack(bd, "<d", 1))
+    assertpack(sizedouble, 1, pack(bd, ">d", 1, n)); assertunpack(sizedouble, {n}, unpack(bd, ">d", 1))
+  end
 end
 
 print "testing pack/unpack of strings"
 do
   local s = string.rep("abc", 1000)
-  assert(pack("zB", s, 247) == s .. "\0\xF7")
-  local s1, b = unpack("zB", s .. "\0\xF9")
-  assert(b == 249 and s1 == s)
-  s1 = pack("s", s)
-  assert(unpack("s", s1) == s)
+  local sz = #s+2
+  local b = memory.create(sz)
+  assertpack(sz, 1, pack(b, "zB", 1, s, 247))
+  assert(tostring(b) == s.."\0\xF7")
+  memory.set(b, -1, 0xF9)
+  assertunpack(sz, {s, 249}, unpack(b, "zB", 1))
 
-  checkerror("does not fit", pack, "s1", s)
+  local sz = #s+sizesize_t
+  local b = memory.create(sz)
+  assertpack(sz, 1, pack(b, "s", 1, s))
+  assertunpack(sz, {s}, unpack(b, "s", 1))
 
-  checkerror("contains zeros", pack, "z", "alo\0");
+  checkerror("does not fit", pack, b, "s1", 1, s)
+
+  checkerror("contains zeros", pack, b, "z", 1, "alo\0");
 
   for i = 2, NB do
-    local s1 = pack("s" .. i, s)
-    assert(unpack("s" .. i, s1) == s and #s1 == #s + i)
+    local b = memory.create(#s+i)
+    pack(b, "s"..i, 1, s)
+    local s1, pos = unpack(b, "s"..i, 1)
+    assert(pos == #s+i+1)
+    assert(s1 == s)
   end
 end
 
 do
-  local x = pack("s", "alo")
-  checkerror("too short", unpack, "s", x:sub(1, -2))
-  checkerror("too short", unpack, "c5", "abcd")
-  checkerror("out of limits", pack, "s100", "alo")
+  local x = string.pack("s", "alo")
+  checkerror("too short", unpack, memory.create(x:sub(1, -2)), "s", 1)
+  checkerror("too short", unpack, memory.create("abcd"), "c5", 1)
+  checkerror("out of limits", pack, memory.create(103), "s100", 1, "alo")
 end
 
 do
-  assert(pack("c0", "") == "")
-  assert(packsize("c0") == 0)
-  assert(unpack("c0", "") == "")
-  assert(pack("<! c3", "abc") == "abc")
-  assert(packsize("<! c3") == 3)
-  assert(pack(">!4 c6", "abcdef") == "abcdef")
-  checkerror("wrong length", pack, "c3", "ab")
-  checkerror("2", pack, "c5", "123456")
-  local a, b, c = unpack("!4 z c3", "abcdefghi\0xyz")
-  assert(a == "abcdefghi" and b == "xyz" and c == 14)
+  local b = memory.create(0)
+  assertpack(0, 1, pack(b, "c0", 1, ""))
+  --TODO: pack(b, "c1", 1, "1")
+  assertunpack(0, {""}, unpack(b, "c0", 1, ""))
+
+  local b = memory.create(3)
+  assertpack(3, 1, pack(b, "<! c3", 1, "abc"))
+  assert(tostring(b) == "abc")
+
+  local b = memory.create(6)
+  assertpack(6, 1, pack(b, ">!4 c6", 1, "abcdef"))
+  assert(tostring(b) == "abcdef")
+  
+  checkerror("wrong length", pack, memory.create(2), "c3", 1, "ab")
+  checkerror("wrong length", pack, memory.create(5), "c5", 1, "123456")
+
+  local b = memory.create("abcdefghi\0xyz")
+  assertunpack(#b, {"abcdefghi", "xyz"}, unpack(b, "!4 z c3", 1))
 end
 
-
-print("testing multiple types and sequence")
-do
-  local x = pack("<b h b f d f n i", 1, 2, 3, 4, 5, 6, 7, 8)
-  assert(#x == packsize("<b h b f d f n i"))
-  local a, b, c, d, e, f, g, h = unpack("<b h b f d f n i", x)
-  assert(a == 1 and b == 2 and c == 3 and d == 4 and e == 5 and f == 6 and
-         g == 7 and h == 8) 
+do print("testing multiple types and sequence")
+  local fmt = "<b h b f d f n i"
+  local sz = packsize(fmt)
+  local b = memory.create(sz)
+  assertpack(sz, 1, pack(b, fmt, 1, 1,2,3,4,5,6,7,8))
+  assertunpack(sz, {1,2,3,4,5,6,7,8}, unpack(b, fmt, 1))
 end
 
-print "testing alignment"
-do
-  assert(pack(" < i1 i2 ", 2, 3) == "\2\3\0")   -- no alignment by default
-  local x = pack(">!8 b Xh i4 i8 c1 Xi8", -12, 100, 200, "\xEC")
-  assert(#x == packsize(">!8 b Xh i4 i8 c1 Xi8"))
-  assert(x == "\xf4" .. "\0\0\0" ..
-              "\0\0\0\100" ..
-              "\0\0\0\0\0\0\0\xC8" .. 
-              "\xEC" .. "\0\0\0\0\0\0\0")
-  local a, b, c, d, pos = unpack(">!8 c1 Xh i4 i8 b Xi8 XI XH", x)
-  assert(a == "\xF4" and b == 100 and c == 200 and d == -20 and (pos - 1) == #x)
+do print "testing alignment"
+  local b = memory.create(3)
+  assertpack(3, 1, pack(b, " < i1 i2 ", 1, 2,3))
+  assert(tostring(b) == "\2\3\0")   -- no alignment by default
 
-  x = pack(">!4 c3 c4 c2 z i4 c5 c2 Xi4",
-                  "abc", "abcd", "xz", "hello", 5, "world", "xy")
-  assert(x == "abcabcdxzhello\0\0\0\0\0\5worldxy\0")
-  local a, b, c, d, e, f, g, pos = unpack(">!4 c3 c4 c2 z i4 c5 c2 Xh Xi4", x)
-  assert(a == "abc" and b == "abcd" and c == "xz" and d == "hello" and
-         e == 5 and f == "world" and g == "xy" and (pos - 1) % 4 == 0)
+  local fmt = ">!8 b Xh i4 i8 c1 Xi8"
+  local sz = packsize(fmt)
+  local b = memory.create(sz)
+  assertpack(sz, 1, pack(b, ">!8 b Xh i4 i8 c1 Xi8", 1, -12,100,200,"\xEC"))
+  assert(tostring(b) == "\xf4" .. "\0\0\0" ..
+                        "\0\0\0\100" ..
+                        "\0\0\0\0\0\0\0\xC8" .. 
+                        "\xEC" .. "\0\0\0\0\0\0\0")
+  assertunpack(sz, {"\xF4", 100, 200, -20}, unpack(b, ">!8 c1 Xh i4 i8 b Xi8 XI XH", 1))
 
-  x = pack(" b b Xd b Xb x", 1, 2, 3)
-  assert(packsize(" b b Xd b Xb x") == 4)
-  assert(x == "\1\2\3\0")
-  a, b, c, pos = unpack("bbXdb", x)
-  assert(a == 1 and b == 2 and c == 3 and pos == #x)
+  local fmt = ">!4 c3 c4 c2 z i4 c5 c2 Xi4"
+  local sz = #string.pack(fmt, "abc","abcd","xz","hello",5,"world","xy")
+  local b = memory.create(sz)
+  assertpack(sz, 1, pack(b, fmt, 1, "abc","abcd","xz","hello",5,"world","xy"))
+  assert(tostring(b) == "abcabcdxzhello\0\0\0\0\0\5worldxy\0")
+  assertunpack(sz, {"abc","abcd","xz","hello",5,"world","xy"},
+    unpack(b, ">!4 c3 c4 c2 z i4 c5 c2 Xh Xi4", 1))
 
-  -- only alignment
-  assert(packsize("!8 xXi8") == 8)
-  local pos = unpack("!8 xXi8", "0123456701234567"); assert(pos == 9)
-  assert(packsize("!8 xXi2") == 2)
-  local pos = unpack("!8 xXi2", "0123456701234567"); assert(pos == 3)
-  assert(packsize("!2 xXi2") == 2)
-  local pos = unpack("!2 xXi2", "0123456701234567"); assert(pos == 3)
-  assert(packsize("!2 xXi8") == 2)
-  local pos = unpack("!2 xXi8", "0123456701234567"); assert(pos == 3)
-  assert(packsize("!16 xXi16") == 16)
-  local pos = unpack("!16 xXi16", "0123456701234567"); assert(pos == 17)
+  local fmt = " b b Xd b Xb x"
+  local sz = packsize(fmt)
+  local b = memory.create(sz)
+  assertpack(sz, 1, pack(b, " b b Xd b Xb x", 1, 1,2,3))
+  assert(tostring(b) == "\1\2\3\0")
+  assertunpack(sz-1, {1,2,3}, unpack(b, "bbXdb", 1))
 
-  checkerror("invalid next option", pack, "X")
-  checkerror("invalid next option", unpack, "XXi", "")
-  checkerror("invalid next option", unpack, "X i", "")
-  checkerror("invalid next option", pack, "Xc1")
+  local b = memory.create("0123456701234567")
+  assertunpack(8, {}, unpack(b, "!8 xXi8", 1))
+  assertunpack(2, {}, unpack(b, "!8 xXi2", 1))
+  assertunpack(2, {}, unpack(b, "!2 xXi2", 1))
+  assertunpack(2, {}, unpack(b, "!2 xXi8", 1))
+  assertunpack(16, {}, unpack(b, "!16 xXi16", 1))
+
+  checkerror("invalid next option", pack, b, "X", 1)
+  checkerror("invalid next option", unpack, b, "XXi", 1, "")
+  checkerror("invalid next option", unpack, b, "X i", 1, "")
+  checkerror("invalid next option", pack, b, "Xc1", 1)
 end
 
 do    -- testing initial position
-  local x = pack("i4i4i4i4", 1, 2, 3, 4)
+  local b = memory.create(string.pack("i4i4i4i4", 1, 2, 3, 4))
   for pos = 1, 16, 4 do
-    local i, p = unpack("i4", x, pos)
+    local i, p = unpack(b, "i4", pos, x)
     assert(i == pos//4 + 1 and p == pos + 4)
   end
 
   -- with alignment
   for pos = 0, 12 do    -- will always round position to power of 2
-    local i, p = unpack("!4 i4", x, pos + 1)
+    local i, p = unpack(b, "!4 i4", pos + 1, x)
     assert(i == (pos + 3)//4 + 1 and p == i*4 + 1)
   end
 
   -- negative indices
-  local i, p = unpack("!4 i4", x, -4)
+  local i, p = unpack(b, "!4 i4", -4)
   assert(i == 4 and p == 17)
-  local i, p = unpack("!4 i4", x, -7)
+  local i, p = unpack(b, "!4 i4", -7)
   assert(i == 4 and p == 17)
-  local i, p = unpack("!4 i4", x, -#x)
+  local i, p = unpack(b, "!4 i4", -#b)
   assert(i == 1 and p == 5)
 
   -- limits
-  for i = 1, #x + 1 do
-    assert(unpack("c0", x, i) == "")
+  for i = 1, #b + 1 do
+    assert(unpack(b, "c0", i) == "")
   end
-  checkerror("out of string", unpack, "c0", x, 0)
-  checkerror("out of string", unpack, "c0", x, #x + 2)
-  checkerror("out of string", unpack, "c0", x, -(#x + 1))
+  checkerror("out of bounds", unpack, b, "c0", 0)
+  checkerror("out of bounds", unpack, b, "c0", #b + 2)
+  checkerror("out of bounds", unpack, b, "c0", -(#b + 1))
  
 end
 
