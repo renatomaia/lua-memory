@@ -2,10 +2,70 @@ local memory = require "memory"
 
 local maxi, mini = math.maxinteger, math.mininteger
 
+local NB = 16  -- maximum size for integers
+local sizeLI = string.packsize("j")
 
-local function checkerror(msg, f, ...)
-  local s, err = pcall(f, ...)
-  assert(not s and string.find(err, msg), err)
+local function asserterr(msg, f, ...)
+	local ok, err = pcall(f, ...)
+	assert(not ok)
+	assert(string.find(err, msg, 1, true) ~= nil)
+end
+
+local function assertret(expected, ...)
+	for i, v in ipairs(expected) do
+		assert(v == select(i, ...), string.format("%s ~= %s", tostring(v), tostring(select(i,...))))
+	end
+	assert(#expected+1 == select("#", ...))
+	return select(#expected+1, ...)
+end
+
+local function testpack(case, ...)
+	local packed = string.pack(case, ...)
+	local size = #packed
+	for _, extra in ipairs{ 0, 8, 16 } do
+		local pad = string.rep("\0", extra)
+		for _, spec in ipairs{
+			{ prefix = "", suffix = pad },
+			{ prefix = pad, suffix = "" },
+			{ prefix = pad, suffix = pad }
+		} do
+			local index = 1+#spec.prefix
+			local expected = spec.prefix..packed..spec.suffix
+			local mem = memory.create(#expected)
+
+			local options = string.match(case, "^%S*")
+			local ok, pos, i = nil, index, 1
+			for format in string.gmatch(case, "%s(%S+)") do
+				ok, pos = memory.pack(mem, options..format, pos, select(i, ...))
+				assert(ok == (#mem>0 or kind~="resizable"))  -- TODO: bug?
+				-- TODO: test attempt to pack with not enough space.
+				i = i+1
+			end
+			assert(pos == index+size)
+			assert(tostring(mem) == expected)
+			pos, i = index, 1
+			local sequence = {nil}
+			for format in string.gmatch(case, "%s%S+") do
+				sequence[1] = select(i, ...)
+				pos = assertret(sequence, memory.unpack(mem, options..format, pos))
+				i = i+1
+			end
+
+			local format, replaces = case, i-2
+			while replaces > 0 do
+				memory.fill(mem, 0)
+				local ok, pos = memory.pack(mem, format, index, ...)
+				assert(ok == true)
+				assert(pos == index+size)
+				assert(tostring(mem) == expected)
+				local pos = assertret({...}, memory.unpack(mem, format, index))
+				assert(pos == index+size)
+				format, replaces = string.gsub(format, " ", "")
+			end
+
+			if extra == 0 then break end
+		end
+	end
 end
 
 -- memory.type(string), memory:set(i, d), memory:get(i)
@@ -40,38 +100,39 @@ local function newresizable(s, i, j)
 	local m = memory.create()
 	if type(s) == "number" then
 		memory.resize(m, s)
-	else
-		memory.resize(m, #s)
-		memory.fill(m, s, i, j)
+	elseif s ~= nil then
+		s = string.sub(tostring(s), i or 1, j)
+		memory.resize(m, #s, s)
 	end
 	return m
 end
 
-for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
+do print("memory.type(value)")
+	assert(memory.type(nil) == nil)
+	assert(memory.type(true) == nil)
+	assert(memory.type(false) == nil)
+	assert(memory.type(0) == nil)
+	assert(memory.type(2^70) == nil)
+	assert(memory.type('123') == nil)
+	assert(memory.type({}) == nil)
+	assert(memory.type(function () end) == nil)
+	assert(memory.type(print) == nil)
+	assert(memory.type(coroutine.running()) == nil)
+	assert(memory.type(io.stdout) == nil)
+	assert(memory.type(memory.create()) == "resizable")
+	assert(memory.type(memory.create(10)) == "fixed")
+	assert(memory.type(memory.create("abc")) == "fixed")
+	assert(memory.type(memory.create("Lua Memory 1.0", 5, -5)) == "fixed")
+end
 
-	do print(kind, "memory.type(value)")
-		assert(memory.type(nil) == nil)
-		assert(memory.type(true) == nil)
-		assert(memory.type(false) == nil)
-		assert(memory.type(0) == nil)
-		assert(memory.type(2^70) == nil)
-		assert(memory.type('123') == nil)
-		assert(memory.type({}) == nil)
-		assert(memory.type(function () end) == nil)
-		assert(memory.type(print) == nil)
-		assert(memory.type(coroutine.running()) == nil)
-		assert(memory.type(io.stdout) == nil)
-		assert(memory.type(memory.create()) == "resizable")
-		assert(memory.type(memory.create(10)) == "fixed")
-		assert(memory.type(memory.create("abc")) == "fixed")
-		assert(memory.type(memory.create("Lua Memory 1.0", 5, -5)) == "fixed")
-	end
+for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
+	local memory = setmetatable({ create = newmem }, { __index = memory })
 
 	do print(kind, "memory:set(i, d)")
 		local b = memory.create(10)
-		checkerror("value out of range", memory.set, b, 1, 256)
-		checkerror("value out of range", memory.set, b, 1, 511)
-		checkerror("value out of range", memory.set, b, 1, -1)
+		asserterr("value out of range", memory.set, b, 1, 256)
+		asserterr("value out of range", memory.set, b, 1, 511)
+		asserterr("value out of range", memory.set, b, 1, -1)
 	end
 
 	do print(kind, "memory.create(string), memory.diff, memory.len, #memory")
@@ -212,7 +273,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		check("    abc   ",-6, -4)
 		local function check(...)
 			local b = memory.create(data)
-			checkerror("index out of bounds", memory.fill, b, "xuxu", ...)
+			asserterr("index out of bounds", memory.fill, b, "xuxu", ...)
 		end
 		check( mini, maxi)
 		check( mini, mini)
@@ -252,11 +313,248 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		end
 	end
 
+	--[[
+	NOTE: most of the test cases below are adapted from the tests of Lua 5.3.1 by
+	      R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
+
+	Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+
+	Permission is hereby granted, free of charge, to any person obtaining
+	a copy of this software and associated documentation files (the
+	"Software"), to deal in the Software without restriction, including
+	without limitation the rights to use, copy, modify, merge, publish,
+	distribute, sublicense, and/or sell copies of the Software, and to
+	permit persons to whom the Software is furnished to do so, subject to
+	the following conditions:
+
+	The above copyright notice and this permission notice shall be
+	included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+	EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+	MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+	IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+	CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+	TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+	SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+	--]]
+
+	testpack(" B", 0xff)
+	testpack(" b", 0x7f)
+	testpack(" b", -0x80)
+	testpack(" H", 0xffff)
+	testpack(" h", 0x7fff)
+	testpack(" h", -0x8000)
+	testpack(" L", 0xffffffff)
+	testpack(" l", 0x7fffffff)
+	testpack(" l", -0x80000000)
+
+	for i = 1, NB do
+		-- small numbers with signal extension ("\xFF...")
+		testpack(" i"..i, -1)
+		-- small unsigned number ("\0...\xAA")
+		testpack("< I"..i, 0xAA)
+		testpack("> I"..i, 0xAA)
+	end
+
+	do print(kind, "memory.pack/unpack: large integers")
+		local lnum = 0x13121110090807060504030201
+		testpack("< j", lnum)
+		testpack("< j", -lnum)
+		testpack("< i"..sizeLI+1, lnum)
+
+		for i = sizeLI + 1, NB do
+			-- strings with (correct) extra bytes
+			testpack("< I"..i, -lnum)
+			testpack("< i"..i, -lnum)
+			testpack("> i"..i, -lnum)
+
+			--TODO: move this to an error section about: overflows
+			local mem = memory.create(i)
+			memory.set(mem, i, 1)
+			asserterr("does not fit", memory.unpack, mem, "<I"..i)
+			memory.fill(mem, 0)
+			memory.set(mem, 1, 1)
+			asserterr("does not fit", memory.unpack, mem, ">i"..i)
+		end
+
+		for i = 1, sizeLI do
+			local n = lnum&(~(-1<<(i*8)))
+			testpack("< i"..i, n)
+			testpack("> i"..i, n)
+		end
+	end
+
+	do print(kind, "memory.pack/unpack: sign extension")
+		local u = 0xf0
+		for i = 1, sizeLI - 1 do
+			testpack("< i"..i, -16)
+			testpack("> I"..i, u)
+			u = u<<8|0xff
+		end
+	end
+
+	do print(kind, "memory.pack/unpack: mixed endianness")
+		testpack(" >i2 <i2 =i4", 10, 20, 2001)
+	end
+
+	do print(kind, "memory.pack/unpack: invalid formats")
+		local data = string.rep("\x55", math.max(16, NB+1))
+		local mem = memory.create(data)
+		asserterr("out of limits", memory.pack, mem, "i0", 1, 0)
+		asserterr("out of limits", memory.pack, mem, "i"..NB+1, 1, 0)
+		asserterr("out of limits", memory.pack, mem, "!"..NB+1, 1, 0)
+		asserterr("(17) out of limits [1,16]", memory.pack, mem, "Xi"..NB+1, 1)
+		asserterr("invalid format option 'r'", memory.pack, mem, "i3r", 1, 0x555555, 0)
+		asserterr("16-byte integer", memory.unpack, mem, "i16")
+		asserterr("not power of 2", memory.pack, mem, "!4i3", 1, 0)
+		asserterr("missing size", memory.pack, mem, "c", 1, "")
+		assert(tostring(mem) == data)
+	end
+
+	do print(kind, "memory.pack/unpack: overflow in packing")
+		for i = 1, sizeLI - 1 do
+			local mem = memory.create(i)
+			local umax = (1 << (i * 8)) - 1
+			local max = umax >> 1
+			local min = ~max
+			asserterr("overflow", memory.pack, mem, "<I"..i, 1, -1)
+			asserterr("overflow", memory.pack, mem, "<I"..i, 1, min)
+			asserterr("overflow", memory.pack, mem, ">I"..i, 1, umax+1)
+			asserterr("overflow", memory.pack, mem, ">i"..i, 1, umax)
+			asserterr("overflow", memory.pack, mem, ">i"..i, 1, max+1)
+			asserterr("overflow", memory.pack, mem, "<i"..i, 1, min-1)
+
+			testpack("> i"..i, max)
+			testpack("< i"..i, min)
+			testpack("> I"..i, umax)
+		end
+	end
+
+
+	do print(kind, "memory.pack/unpack: Lua integer size")
+		local b = memory.create(sizeLI)
+		testpack("> j", math.maxinteger)
+		testpack("< j", math.mininteger)
+		testpack("< j", -1)  -- maximum unsigned integer
+	end
+
+	do print(kind, "memory.pack/unpack: floating-point numbers")
+		for _, n in ipairs{-1.1, 1.9, 1e20, -1e20, 0.1, 2000.7} do
+			testpack(" n", n)
+			testpack("< n", n)
+			testpack("> n", n)
+		end
+		-- for non-native precisions, test only with "round" numbers
+		for _, n in ipairs{0, -1.5, 1/0, -1/0, 1e10, -1e9, 0.5, 2000.25} do
+			testpack(" n f d", n, n, n)
+			testpack("< n f d", n, n, n)
+			testpack("> n f d", n, n, n)
+		end
+	end
+
+
+	do print(kind, "memory.pack/unpack: strings")
+		local s = string.rep("abc", 1000)
+		testpack(" z B", s, 247)
+		testpack(" z B", s, 249)
+		testpack(" s", s)
+
+		local mem = memory.create(#s+1)
+		asserterr("does not fit", memory.pack, mem, "s1", 1, s)
+		asserterr("contains zeros", memory.pack, mem, "z", 1, "alo\0");
+
+		-- create memory with no '\0' after its end
+		local nozero = memory.create()
+		memory.resize(nozero, 3003, "abc")
+		memory.resize(nozero, 3000)
+		local ok, pos = memory.pack(mem, "z", 1, nozero)
+		assert(ok == true)
+		assert(pos == 3002)
+		assert(tostring(mem) == s.."\0");
+
+		for i = 2, NB do
+			testpack(" s"..i, s)
+		end
+	end
+
+	do
+		local x = string.pack("s", "alo")
+		asserterr("too short", memory.unpack, memory.create(x:sub(1, -2)), "s")
+		asserterr("too short", memory.unpack, memory.create("abcd"), "c5")
+		asserterr("out of limits", memory.pack, memory.create(103), "s100", 1, "alo")
+	end
+
+	do
+		testpack(" c0", "")
+		testpack("<! c3", "abc")
+		testpack(">!4 c6", "abcdef")
+		testpack("!4 z c3", "abcdefghi", "xyz")
+
+		asserterr("wrong length", memory.pack, memory.create(2), "c3", 1, "ab")
+		asserterr("wrong length", memory.pack, memory.create(6), "c5", 1, "123456")
+	end
+
+	do print(kind, "memory.pack/unpack: multiple types and sequence")
+		testpack("< b h b f d f n i", 1, 2, 3, 4, 5, 6, 7, 8)
+	end
+
+	do print(kind, "memory.pack/unpack: alignment")
+		testpack("< i1 i2 ", 2, 3)
+
+		testpack(">!8 bXh i4 i8 c1Xi8", -12, 100, 200, "\xEC")
+		testpack(">!8 c1Xh i4 i8 bXi8XIXH", "\xF4", 100, 200, -20)
+		testpack(">!4 c3 c4 c2 z i4 c5 c2 Xi4",
+		         "abc", "abcd", "xz", "hello", 5, "world", "xy")
+		testpack(">!4 c3 c4 c2 z i4 c5 c2XhXi4",
+		         "abc", "abcd", "xz", "hello", 5, "world", "xy")
+		testpack(" b bXd bXbx", 1, 2, 3)
+		testpack(" b bXd b", 1, 2, 3)
+
+		local mem = memory.create("0123456701234567")
+		assert(assertret({}, memory.unpack(mem, "!8 xXi8")) == 9)
+		assert(assertret({}, memory.unpack(mem, "!8 xXi2")) == 3)
+		assert(assertret({}, memory.unpack(mem, "!2 xXi2")) == 3)
+		assert(assertret({}, memory.unpack(mem, "!2 xXi8")) == 3)
+		assert(assertret({}, memory.unpack(mem, "!16 xXi16")) == 17)
+
+		asserterr("invalid next option", memory.pack, mem, "X", 1)
+		asserterr("invalid next option", memory.pack, mem, "Xc1", 1)
+		asserterr("invalid next option", memory.unpack, mem, "XXi")
+		asserterr("invalid next option", memory.unpack, mem, "X i")
+	end
+
+	-- TODO: review the cases below to apply then to 'unpack'.
+	do print(kind, "memory.pack/unpack: initial position")
+		local mem = memory.create(string.pack("i4i4i4i4", 1, 2, 3, 4))
+
+		-- with alignment
+		for pos = 0, 12 do  -- will always round position to power of 2
+			local i, p = memory.unpack(mem, "!4 i4", pos+1)
+			assert(i == (pos+3)//4+1 and p == i*4+1)
+		end
+
+		-- negative indices
+		local i, p = memory.unpack(mem, "!4 i4", -4)
+		assert(i == 4 and p == 17)
+		local i, p = memory.unpack(mem, "!4 i4", -7)
+		assert(i == 4 and p == 17)
+		local i, p = memory.unpack(mem, "!4 i4", -#mem)
+		assert(i == 1 and p == 5)
+
+		-- limits
+		for i = 1, #mem+1 do
+			assert(memory.unpack(mem, "c0", i) == "")
+		end
+		asserterr("out of bounds", memory.unpack, mem, "c0", 0)
+		asserterr("out of bounds", memory.unpack, mem, "c0", #mem+2)
+		asserterr("out of bounds", memory.unpack, mem, "c0", -(#mem+1))
+	end
 end
 
 do print "memory.resize(m, size [, s])"
 	local m = memory.create(3)
-	checkerror("resizable memory expected", memory.resize, m, 10)
+	asserterr("resizable memory expected", memory.resize, m, 10)
 
 	local m = memory.create()
 	assert(memory.len(m) == 0)
@@ -287,10 +585,10 @@ do print "memory.resize(m, size [, s])"
 	memory.resize(m, 10, "")
 	assert(tostring(m) == "abcde\0\0\0\0\0")
 
-	checkerror("string or memory expected", memory.resize, m, 15, table)
+	asserterr("string or memory expected", memory.resize, m, 15, table)
 	assert(tostring(m) == "abcde\0\0\0\0\0")
 
-	checkerror("string or memory expected", memory.resize, m, 0, table)
+	asserterr("string or memory expected", memory.resize, m, 0, table)
 	assert(tostring(m) == "abcde\0\0\0\0\0")
 end
 
