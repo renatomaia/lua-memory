@@ -51,14 +51,14 @@ local function testpack(case, ...)
 				i = i+1
 			end
 
-			local format, replaces = case, i-2
+			local format, replaces = case, 1
 			while replaces > 0 do
 				memory.fill(mem, 0)
-				local ok, pos = memory.pack(mem, format, index, ...)
+				ok, pos = memory.pack(mem, format, index, ...)
 				assert(ok == true)
 				assert(pos == index+size)
 				assert(tostring(mem) == expected)
-				local pos = assertret({...}, memory.unpack(mem, format, index))
+				pos = assertret({...}, memory.unpack(mem, format, index))
 				assert(pos == index+size)
 				format, replaces = string.gsub(format, " ", "")
 			end
@@ -473,15 +473,16 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		assert(pos == 3002)
 		assert(tostring(mem) == s.."\0");
 
+		asserterr("too short", memory.unpack, nozero, "z");
+
 		for i = 2, NB do
 			testpack(" s"..i, s)
 		end
-	end
 
-	do
 		local x = string.pack("s", "alo")
 		asserterr("too short", memory.unpack, memory.create(x:sub(1, -2)), "s")
 		asserterr("too short", memory.unpack, memory.create("abcd"), "c5")
+		asserterr("too short", memory.unpack, memory.create(), "z")
 		asserterr("out of limits", memory.pack, memory.create(103), "s100", 1, "alo")
 	end
 

@@ -784,7 +784,10 @@ static int mem_unpack (lua_State *L) {
 				break;
 			}
 			case Kzstr: {
-				size_t len = (int)strlen(data + pos);
+				size_t len;
+				const char *z = (const char *)memchr(data + pos, '\0', ld - pos);
+				luaL_argcheck(L, z, 2, "data string too short");
+				len = (size_t)(z - data - pos);
 				lua_pushlstring(L, data + pos, len);
 				pos += len + 1;  /* skip string plus final '\0' */
 				break;
