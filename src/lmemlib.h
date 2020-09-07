@@ -59,8 +59,8 @@ LUAMEMLIB_API size_t (luamem_checklenarg) (lua_State *L, int idx);
 ** Some sizes are better limited to fit in 'int', but must also fit in
 ** 'size_t'. (We assume that 'lua_Integer' cannot be smaller than 'int'.)
 */
-#define LUAMEM_MAXALLOC  \
-	(sizeof(size_t) < sizeof(int) ? (~(size_t)0) : (size_t)(INT_MAX))
+#define LUAMEM_MAXSIZE  \
+	(sizeof(size_t) < sizeof(int) ? ((size_t)(~(size_t)0)) : (size_t)(INT_MAX))
 
 
 /*

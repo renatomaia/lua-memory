@@ -11,7 +11,7 @@ static int typeerror (lua_State *L, int arg, const char *tname);
 
 
 LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
-	char *mem = (char *)lua_newuserdata(L, l * sizeof(char));
+	char *mem = (char *)lua_newuserdatauv(L, l * sizeof(char), 0);
 	luaL_newmetatable(L, LUAMEM_ALLOC);
 	lua_setmetatable(L, -2);
 	return mem;
@@ -32,7 +32,7 @@ static int luaunref (lua_State *L) {
 }
 
 LUAMEMLIB_API void luamem_newref (lua_State *L) {
-	luamem_Ref *ref = (luamem_Ref *)lua_newuserdata(L, sizeof(luamem_Ref));
+	luamem_Ref *ref = (luamem_Ref *)lua_newuserdatauv(L, sizeof(luamem_Ref), 0);
 	ref->mem = NULL;
 	ref->len = 0;
 	ref->unref = NULL;
@@ -155,16 +155,16 @@ LUAMEMLIB_API void luamem_free(lua_State *L, void *mem, size_t size) {
 
 LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx) {
 	lua_Integer sz = luaL_checkinteger(L, idx);
-	luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUAMEM_MAXALLOC,
+	luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUAMEM_MAXSIZE,
 	                 idx, "invalid size");
 	return (size_t)sz;
 }
 
 /*
-* NOTE: most of the code below is copied from the source of Lua 5.3.1 by
+* NOTE: most of the code below is copied from the source of Lua 5.4.0 by
 *       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
 *
-* Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2020 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -209,7 +209,7 @@ static int typeerror (lua_State *L, int arg, const char *tname) {
 ** check whether buffer is using a userdata on the stack as a temporary
 ** buffer
 */
-#define buffonstack(B)	((B)->b != (B)->initb)
+#define buffonstack(B)	((B)->b != (B)->init.b)
 
 
 LUAMEMLIB_API void luamem_pushresult (luaL_Buffer *B) {

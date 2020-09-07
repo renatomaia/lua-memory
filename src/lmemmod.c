@@ -5,9 +5,10 @@
 #include <string.h>
 #include <lualib.h>
 
-static lua_Integer posrelat (lua_Integer pos, size_t len);
+static size_t posrelatI (lua_Integer pos, size_t len);
+static size_t getendpos (lua_State *L, int arg, lua_Integer def, size_t len);
 static int str2byte (lua_State *L, const char *s, size_t l);
-static void code2char (lua_State *L, int idx, char *p, lua_Integer n);
+static void code2char (lua_State *L, int idx, char *p, size_t n);
 static const char *lmemfind (const char *s1, size_t l1,
                              const char *s2, size_t l2);
 
@@ -22,19 +23,17 @@ static int mem_create (lua_State *L) {
 		if (lua_type(L, 1) == LUA_TNUMBER) {
 			len = luamem_checklenarg(L, 1);
 		} else {
-			lua_Integer posi, pose;
+			size_t posi, pose;
 			s = luamem_checkstring(L, 1, &len);
-			posi = posrelat(luaL_optinteger(L, 2, 1), len);
-			pose = posrelat(luaL_optinteger(L, 3, -1), len);
-			if (posi < 1) posi = 1;
-			if (pose > (lua_Integer)len) pose = len;
+			posi = posrelatI(luaL_optinteger(L, 2, 1), len);
+			pose = getendpos(L, 3, -1, len);
 			if (posi > pose) {
 				len = 0;
 				s = NULL;
 			} else {
-				if (pose - posi >= INT_MAX)  /* arithmetic overflow? */
+				if (pose-posi >= (size_t)INT_MAX)  /* arithmetic overflow? */
 					return luaL_error(L, "string slice too long");
-				len = (pose - posi) + 1;
+				len = (pose-posi)+1;
 				s += posi-1;
 			}
 		}
@@ -48,7 +47,7 @@ static int mem_create (lua_State *L) {
 static void memfill (char *mem, size_t size, const char *s, size_t len) {
 	do {
 		size_t n = size < len ? size : len;
-		memmove(mem, s, n * sizeof(char));
+		memmove(mem, s, n*sizeof(char));
 		mem += n;
 		size -= n;
 	} while (size > 0);
@@ -101,15 +100,9 @@ static int mem_len (lua_State *L) {
 static int mem_tostring (lua_State *L) {
 	size_t len;
 	const char *s = luamem_checkstring(L, 1, &len);
-	lua_Integer posi = posrelat(luaL_optinteger(L, 2, 1), len);
-	lua_Integer pose = posrelat(luaL_optinteger(L, 3, -1), len);
-	int n;
-	if (posi < 1) posi = 1;
-	if (pose > (lua_Integer)len) pose = len;
-	n = (int)(pose - posi + 1);
-	if (posi + n <= pose)  /* arithmetic overflow? */
-		return luaL_error(L, "string slice too long");
-	if (n > 0) lua_pushlstring(L, s + posi -1, n);
+	size_t start = posrelatI(luaL_optinteger(L, 2, 1), len);
+	size_t end = getendpos(L, 3, -1, len);
+	if (start <= end) lua_pushlstring(L, s+start-1, (end-start)+1);
 	else lua_pushliteral(L, "");
 	return 1;
 }
@@ -119,7 +112,7 @@ static int mem_diff (lua_State *L) {
 	const char *s1 = luamem_checkstring(L, 1, &l1);
 	const char *s2 = luamem_checkstring(L, 2, &l2);
 	size_t i, n=(l1<l2 ? l1 : l2);
-	for (i=0; (i<n) && (s1[i]==s2[i]); ++i);
+	for (i=0; (i<n) && (s1[i]==s2[i]); i++);
 	if (i<n) {
 		lua_pushinteger(L, i+1);
 		lua_pushboolean(L, s1[i]<s2[i]);
@@ -141,12 +134,12 @@ static int mem_get (lua_State *L) {
 
 static int mem_set (lua_State *L) {
 	size_t len;
-	lua_Integer n = lua_gettop(L)-2;  /* number of bytes */
+	size_t n = lua_gettop(L)-2;  /* number of bytes */
 	char *p = luamem_checkmemory(L, 1, &len);
-	lua_Integer i = posrelat(luaL_checkinteger(L, 2), len);
+	size_t i = posrelatI(luaL_checkinteger(L, 2), len);
 	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 2, "index out of bounds");
 	len = 1+len-i;
-	code2char(L, 3, p+i-1, n < (lua_Integer)len ? n : (lua_Integer)len);
+	code2char(L, 3, p+i-1, n < len ? n : len);
 	return 0;
 }
 
@@ -154,20 +147,19 @@ static int mem_find (lua_State *L) {
 	size_t len, sl;
 	const char *p = luamem_checkstring(L, 1, &len);
 	const char *s = luamem_checkstring(L, 2, &sl);
-	lua_Integer i = posrelat(luaL_optinteger(L, 3, 1), len);
-	lua_Integer j = posrelat(luaL_optinteger(L, 4, -1), len);
-	lua_Integer os = posrelat(luaL_optinteger(L, 5, 1), sl);
-	if (os < 1) os = 1;
-	if (i <= j && os <= (lua_Integer)sl) {
-		int n = (int)(j - i + 1);
-		if (i + n <= j)  /* arithmetic overflow? */
+	size_t i = posrelatI(luaL_optinteger(L, 3, 1), len);
+	size_t j = getendpos(L, 4, -1, len);
+	size_t os = posrelatI(luaL_optinteger(L, 5, 1), sl);
+	if (i <= j && os <= sl) {
+		int n = (int)(j-i+1);
+		if (i+n <= j)  /* arithmetic overflow? */
 			return luaL_error(L, "string slice too long");
-		--os;
+		os--;
 		sl -= os;
-		s = lmemfind(p + i - 1, (size_t)n, s + os, sl);
+		s = lmemfind(p+i-1, (size_t)n, s+os, sl < n ? sl : n);
 		if (s) {
-			lua_pushinteger(L, (s - p) + 1);
-			lua_pushinteger(L, (s - p) + sl);
+			lua_pushinteger(L, (s-p)+1);
+			lua_pushinteger(L, (s-p)+sl);
 			return 2;
 		}
 	}
@@ -177,11 +169,11 @@ static int mem_find (lua_State *L) {
 static int mem_fill (lua_State *L) {
 	size_t len, sl;
 	char *p = luamem_checkmemory(L, 1, &len);
-	lua_Integer i = posrelat(luaL_optinteger(L, 3, 1), len);
-	lua_Integer j = posrelat(luaL_optinteger(L, 4, -1), len);
+	size_t i = posrelatI(luaL_optinteger(L, 3, 1), len);
+	size_t j = getendpos(L, 4, -1, len);
 	char c;
 	const char *s = NULL;
-	lua_Integer os;
+	size_t os;
 	if (lua_type(L, 2) == LUA_TNUMBER) {
 		s = &c;
 		sl = 1;
@@ -189,17 +181,11 @@ static int mem_fill (lua_State *L) {
 		code2char(L, 2, &c, 1);
 	} else {
 		s = luamem_checkstring(L, 2, &sl);
-		os = posrelat(luaL_optinteger(L, 5, 1), sl);
+		os = posrelatI(luaL_optinteger(L, 5, 1), sl);
 	}
-	if (os < 1) os = 1;
-	if (i <= j && os <= (lua_Integer)sl) {
-		size_t n = (size_t)(j-i+1);
-		luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 3, "index out of bounds");
-		luaL_argcheck(L, 1 <= j && j <= (lua_Integer)len, 4, "index out of bounds");
-		if (i+(lua_Integer)n <= j)  /* arithmetic overflow? */
-			return luaL_error(L, "string slice too long");
-		--os;
-		memfill(p+i-1, n, s+os, sl-os);
+	if (i <= j && os <= sl) {
+		os--;
+		memfill(p+i-1, j-i+1, s+os, sl-os);
 	}
 	return 0;
 }
@@ -233,7 +219,7 @@ static const luaL_Reg meta[] = {
 static void setupmetatable (lua_State *L) {
 	if (lua_getmetatable(L, -1)) {
 		luaL_setfuncs(L, meta, 0);  /* add metamethods to metatable */
-		lua_pushvalue(L, 1);  /* push library */
+		lua_pushvalue(L, -3);  /* push library */
 		lua_setfield(L, -2, "__index");  /* metatable.__index = library */
 		lua_pop(L, 1);  /* pop metatable */
 	}
@@ -251,10 +237,10 @@ LUAMEMMOD_API int luaopen_memory (lua_State *L) {
 }
 
 /*
-* NOTE: most of the code below is copied from the source of Lua 5.3.1 by
+* NOTE: most of the code below is copied from the source of Lua 5.4.0 by
 *       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
 *
-* Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2020 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -282,30 +268,57 @@ LUAMEMMOD_API int luaopen_memory (lua_State *L) {
 #define uchar(c)	((unsigned char)(c))
 
 
-/* translate a relative string position: negative means back from end */
-static lua_Integer posrelat (lua_Integer pos, size_t len) {
-	if (pos >= 0) return pos;
-	else if (0u - (size_t)pos > len) return 0;
-	else return (lua_Integer)len + pos + 1;
+/*
+** translate a relative initial string position
+** (negative means back from end): clip result to [1, inf).
+** The length of any string in Lua must fit in a lua_Integer,
+** so there are no overflows in the casts.
+** The inverted comparison avoids a possible overflow
+** computing '-pos'.
+*/
+static size_t posrelatI (lua_Integer pos, size_t len) {
+	if (pos > 0)
+		return (size_t)pos;
+	else if (pos == 0)
+		return 1;
+	else if (pos < -(lua_Integer)len)  /* inverted comparison */
+		return 1;  /* clip to 1 */
+	else return len + (size_t)pos + 1;
+}
+
+/*
+** Gets an optional ending string position from argument 'arg',
+** with default value 'def'.
+** Negative means back from end: clip result to [0, len]
+*/
+static size_t getendpos (lua_State *L, int arg, lua_Integer def,
+                         size_t len) {
+  lua_Integer pos = luaL_optinteger(L, arg, def);
+  if (pos > (lua_Integer)len)
+    return len;
+  else if (pos >= 0)
+    return (size_t)pos;
+  else if (pos < -(lua_Integer)len)
+    return 0;
+  else return len + (size_t)pos + 1;
 }
 
 static int str2byte (lua_State *L, const char *s, size_t l) {
-	lua_Integer posi = posrelat(luaL_optinteger(L, 2, 1), l);
-	lua_Integer pose = posrelat(luaL_optinteger(L, 3, posi), l);
+	lua_Integer pi = luaL_optinteger(L, 2, 1);
+	size_t posi = posrelatI(pi, l);
+	size_t pose = getendpos(L, 3, pi, l);
 	int n, i;
-	if (posi < 1) posi = 1;
-	if (pose > (lua_Integer)l) pose = l;
 	if (posi > pose) return 0;  /* empty interval; return no values */
-	n = (int)(pose - posi + 1);
-	if (posi + n <= pose)  /* arithmetic overflow? */
+	if (pose - posi >= (size_t)INT_MAX)  /* arithmetic overflow? */
 		return luaL_error(L, "string slice too long");
+	n = (int)(pose -  posi) + 1;
 	luaL_checkstack(L, n, "string slice too long");
 	for (i=0; i<n; i++)
 		lua_pushinteger(L, uchar(s[posi+i-1]));
 	return n;
 }
 
-static void code2char (lua_State *L, int idx, char *p, lua_Integer n) {
+static void code2char (lua_State *L, int idx, char *p, size_t n) {
 	int i;
 	for (i=0; i<n; ++i, ++idx) {
 		lua_Integer c = luaL_checkinteger(L, idx);
@@ -316,8 +329,10 @@ static void code2char (lua_State *L, int idx, char *p, lua_Integer n) {
 
 static const char *lmemfind (const char *s1, size_t l1,
                              const char *s2, size_t l2) {
+#ifdef luai_apicheck
+	luai_apicheck(l2 <= l1);
+#endif
 	if (l2 == 0) return s1;  /* empty strings are everywhere */
-	else if (l2 > l1) return NULL;  /* avoids a negative 'l1' */
 	else {
 		const char *init;  /* to search for a '*s2' inside 's1' */
 		l2--;  /* 1st char will be checked by 'memchr' */
@@ -342,8 +357,8 @@ static const char *lmemfind (const char *s1, size_t l1,
 */
 
 /* value used for padding */
-#if !defined(LUA_PACKPADBYTE)
-#define LUA_PACKPADBYTE		0x00
+#if !defined(LUAL_PACKPADBYTE)
+#define LUAL_PACKPADBYTE		0x00
 #endif
 
 /* maximum size for the binary representation of an integer */
@@ -425,7 +440,7 @@ static int getnum (const char **fmt, int df) {
 		int a = 0;
 		do {
 			a = a*10 + (*((*fmt)++) - '0');
-		} while (digit(**fmt) && a <= ((int)LUAMEM_MAXALLOC - 9)/10);
+		} while (digit(**fmt) && a <= ((int)LUAMEM_MAXSIZE - 9)/10);
 		return a;
 	}
 }
@@ -438,8 +453,8 @@ static int getnum (const char **fmt, int df) {
 static int getnumlimit (Header *h, const char **fmt, int df) {
 	int sz = getnum(fmt, df);
 	if (sz > MAXINTSIZE || sz <= 0)
-		luaL_error(h->L, "integral size (%d) out of limits [1,%d]",
-		                 sz, MAXINTSIZE);
+		return luaL_error(h->L, "integral size (%d) out of limits [1,%d]",
+		                        sz, MAXINTSIZE);
 	return sz;
 }
 
@@ -500,7 +515,7 @@ static KOption getoption (Header *h, const char **fmt, int *size) {
 ** 'psize' is filled with option's size, 'notoalign' with its
 ** alignment requirements.
 ** Local variable 'size' gets the size to be aligned. (Kpadal option
-** always gets its full alignment, other options are limited by 
+** always gets its full alignment, other options are limited by
 ** the maximum alignment ('maxalign'). Kchar option needs no alignment
 ** despite its size.
 */
@@ -609,15 +624,13 @@ static void copywithendian (volatile char *dest, volatile const char *src,
 
 static int mem_pack (lua_State *L) {
 	Header h;
-	size_t i, lb;
+	size_t lb;
 	char *mem = luamem_checkmemory(L, 1, &lb);
 	const char *fmt = luaL_checkstring(L, 2);  /* format string */
-	lua_Integer pos = posrelat(luaL_checkinteger(L, 3), lb)-1;
+	size_t i = posrelatI(luaL_checkinteger(L, 3), lb) - 1;
 	int arg = 3;  /* current argument to pack */
-	luaL_argcheck(L, 0 <= pos && pos <= (lua_Integer)lb, 3,
-		"index out of bounds");
+	luaL_argcheck(L, i <= lb, 3, "index out of bounds");
 	initheader(L, &h);
-	i = (size_t)pos;
 	mem += i;
 	while (*fmt != '\0') {
 		int size, ntoalign;
@@ -741,15 +754,15 @@ static int mem_unpack (lua_State *L) {
 	size_t ld;
 	const char *data = luamem_checkmemory(L, 1, &ld);
 	const char *fmt = luaL_checkstring(L, 2);
-	size_t pos = (size_t)posrelat(luaL_optinteger(L, 3, 1), ld) - 1;
+	size_t pos = posrelatI(luaL_optinteger(L, 3, 1), ld) - 1;
 	int n = 0;  /* number of results */
-	luaL_argcheck(L, pos <= ld, 3, "initial position out of bounds");
+	luaL_argcheck(L, pos <= ld, 3, "index out of bounds");
 	initheader(L, &h);
 	while (*fmt != '\0') {
 		int size, ntoalign;
 		KOption opt = getdetails(&h, pos, &fmt, &size, &ntoalign);
-		if ((size_t)ntoalign + size > ~pos || pos + ntoalign + size > ld)
-			luaL_argerror(L, 1, "data too short");
+		luaL_argcheck(L, (size_t)ntoalign + size <= ld - pos, 2,
+		                "data string too short");
 		pos += ntoalign;  /* skip alignment */
 		/* stack space for item + next position */
 		luaL_checkstack(L, 1, "too many results");
@@ -778,7 +791,7 @@ static int mem_unpack (lua_State *L) {
 			}
 			case Kstring: {
 				size_t len = (size_t)unpackint(L, data + pos, h.islittle, size, 0);
-				luaL_argcheck(L, pos + len + size <= ld, 2, "data string too short");
+				luaL_argcheck(L, len <= ld - pos - size, 2, "data string too short");
 				lua_pushlstring(L, data + pos + size, len);
 				pos += len;  /* skip string */
 				break;
@@ -786,7 +799,7 @@ static int mem_unpack (lua_State *L) {
 			case Kzstr: {
 				size_t len;
 				const char *z = (const char *)memchr(data + pos, '\0', ld - pos);
-				luaL_argcheck(L, z, 2, "data string too short");
+				luaL_argcheck(L, z, 2, "unfinished string for format 'z'");
 				len = (size_t)(z - data - pos);
 				lua_pushlstring(L, data + pos, len);
 				pos += len + 1;  /* skip string plus final '\0' */
