@@ -22,7 +22,7 @@ Documentation
   - [(Un)packing Data](demo/packing.lua)
 - C API Use
   - [Module `memory` Source](src/lmemmod.c)
-  - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/pull/1/files)
+  - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/commit/fdca74d8222b9c427ed70f232c8249f9b0999ba0)
 
 TODO
 ----
