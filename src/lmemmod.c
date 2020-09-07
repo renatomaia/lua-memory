@@ -156,7 +156,7 @@ static int mem_find (lua_State *L) {
 			return luaL_error(L, "string slice too long");
 		os--;
 		sl -= os;
-		s = lmemfind(p+i-1, (size_t)n, s+os, sl);
+		s = lmemfind(p+i-1, (size_t)n, s+os, sl < n ? sl : n);
 		if (s) {
 			lua_pushinteger(L, (s-p)+1);
 			lua_pushinteger(L, (s-p)+sl);
@@ -219,7 +219,7 @@ static const luaL_Reg meta[] = {
 static void setupmetatable (lua_State *L) {
 	if (lua_getmetatable(L, -1)) {
 		luaL_setfuncs(L, meta, 0);  /* add metamethods to metatable */
-		lua_pushvalue(L, 1);  /* push library */
+		lua_pushvalue(L, -3);  /* push library */
 		lua_setfield(L, -2, "__index");  /* metatable.__index = library */
 		lua_pop(L, 1);  /* pop metatable */
 	}
@@ -329,8 +329,10 @@ static void code2char (lua_State *L, int idx, char *p, size_t n) {
 
 static const char *lmemfind (const char *s1, size_t l1,
                              const char *s2, size_t l2) {
+#ifdef luai_apicheck
+	luai_apicheck(l2 <= l1);
+#endif
 	if (l2 == 0) return s1;  /* empty strings are everywhere */
-	else if (l2 > l1) return NULL;  /* avoids a negative 'l1' */
 	else {
 		const char *init;  /* to search for a '*s2' inside 's1' */
 		l2--;  /* 1st char will be checked by 'memchr' */

@@ -11,7 +11,7 @@ static int typeerror (lua_State *L, int arg, const char *tname);
 
 
 LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
-	char *mem = (char *)lua_newuserdata(L, l * sizeof(char));
+	char *mem = (char *)lua_newuserdatauv(L, l * sizeof(char), 0);
 	luaL_newmetatable(L, LUAMEM_ALLOC);
 	lua_setmetatable(L, -2);
 	return mem;
@@ -32,7 +32,7 @@ static int luaunref (lua_State *L) {
 }
 
 LUAMEMLIB_API void luamem_newref (lua_State *L) {
-	luamem_Ref *ref = (luamem_Ref *)lua_newuserdata(L, sizeof(luamem_Ref));
+	luamem_Ref *ref = (luamem_Ref *)lua_newuserdatauv(L, sizeof(luamem_Ref), 0);
 	ref->mem = NULL;
 	ref->len = 0;
 	ref->unref = NULL;
