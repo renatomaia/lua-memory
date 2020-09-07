@@ -155,7 +155,7 @@ LUAMEMLIB_API void luamem_free(lua_State *L, void *mem, size_t size) {
 
 LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx) {
 	lua_Integer sz = luaL_checkinteger(L, idx);
-	luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUAMEM_MAXALLOC,
+	luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUAMEM_MAXSIZE,
 	                 idx, "invalid size");
 	return (size_t)sz;
 }
@@ -209,7 +209,7 @@ static int typeerror (lua_State *L, int arg, const char *tname) {
 ** check whether buffer is using a userdata on the stack as a temporary
 ** buffer
 */
-#define buffonstack(B)	((B)->b != (B)->initb)
+#define buffonstack(B)	((B)->b != (B)->init.b)
 
 
 LUAMEMLIB_API void luamem_pushresult (luaL_Buffer *B) {
