@@ -71,7 +71,7 @@ Both `m1` and `m2` shall be memory or string.
 
 ### `memory.find (m, s [, i [, j [, o]]])`
 
-Searches in memory or string `m` from position `i` until `j` for the contents of the memory or string `s` from position `o` of `s`;
+Searches in memory or string `m` from position `i` until `j` for the contents of the memory or string `s` from position `o` of `s` that fits in this range;
 `i`, `j` and `o` can be negative.
 The default value for `i` and `o` is 1;
 the default value for `j` is -1 (which is the same as the size of `s`).
