@@ -1,5 +1,5 @@
 #define lmemlib_c
-
+#define LUA_LIB
 #define LUAMEMLIB_API
 
 #include "lmemlib.h"
@@ -7,11 +7,8 @@
 #include <string.h>
 
 
-static int typeerror (lua_State *L, int arg, const char *tname);
-
-
 LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
-	char *mem = (char *)lua_newuserdata(L, l * sizeof(char));
+	char *mem = (char *)lua_newuserdatauv(L, l * sizeof(char), 0);
 	luaL_newmetatable(L, LUAMEM_ALLOC);
 	lua_setmetatable(L, -2);
 	return mem;
@@ -32,7 +29,7 @@ static int luaunref (lua_State *L) {
 }
 
 LUAMEMLIB_API void luamem_newref (lua_State *L) {
-	luamem_Ref *ref = (luamem_Ref *)lua_newuserdata(L, sizeof(luamem_Ref));
+	luamem_Ref *ref = (luamem_Ref *)lua_newuserdatauv(L, sizeof(luamem_Ref), 0);
 	ref->mem = NULL;
 	ref->len = 0;
 	ref->unref = NULL;
@@ -101,7 +98,7 @@ LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
 LUAMEMLIB_API char *luamem_checkmemory (lua_State *L, int arg, size_t *len) {
 	int type;
 	char *mem = luamem_tomemoryx(L, arg, len, NULL, &type);
-	if (type == LUAMEM_TNONE) typeerror(L, arg, "memory");
+	if (type == LUAMEM_TNONE) luaL_typeerror(L, arg, "memory");
 	return mem;
 }
 
@@ -117,6 +114,13 @@ LUAMEMLIB_API const char *luamem_tostring (lua_State *L, int idx, size_t *len) {
 	return s;
 }
 
+LUAMEMLIB_API const char *luamem_asstring (lua_State *L, int idx, size_t *len) {
+	int type;
+	const char *s = luamem_tomemoryx(L, idx, len, NULL, &type);
+	if (type == LUAMEM_TNONE) return luaL_tolstring(L, idx, len);
+	return s;
+}
+
 LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
                                               int arg,
                                               size_t *len) {
@@ -124,7 +128,7 @@ LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
 	const char *s = luamem_tomemoryx(L, arg, len, NULL, &type);
 	if (type == LUAMEM_TNONE) {
 		s = lua_tolstring(L, arg, len);
-		if (!s) typeerror(L, arg, "string or memory");
+		if (!s) luaL_typeerror(L, arg, "string or memory");
 	}
 	return s;
 }
@@ -155,16 +159,16 @@ LUAMEMLIB_API void luamem_free(lua_State *L, void *mem, size_t size) {
 
 LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx) {
 	lua_Integer sz = luaL_checkinteger(L, idx);
-	luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUAMEM_MAXALLOC,
+	luaL_argcheck(L, 0 <= sz && sz < (lua_Integer)LUAMEM_MAXSIZE,
 	                 idx, "invalid size");
 	return (size_t)sz;
 }
 
 /*
-* NOTE: most of the code below is copied from the source of Lua 5.3.1 by
+* NOTE: most of the code below is copied from the source of Lua 5.4.0 by
 *       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
 *
-* Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2020 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -186,41 +190,138 @@ LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx) {
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-static int typeerror (lua_State *L, int arg, const char *tname) {
-	const char *msg;
-	const char *typearg;  /* name for the type of the actual argument */
-	if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
-		typearg = lua_tostring(L, -1);  /* use the given type name */
-	else if (lua_type(L, arg) == LUA_TLIGHTUSERDATA)
-		typearg = "light userdata";  /* special name for messages */
-	else
-		typearg = luaL_typename(L, arg);  /* standard name */
-	msg = lua_pushfstring(L, "%s expected, got %s", tname, typearg);
-	return luaL_argerror(L, arg, msg);
-}
-
 /*
 ** {======================================================
 ** Generic Buffer manipulation
 ** =======================================================
 */
 
+#if !defined(MAX_SIZET)
+/* maximum value for size_t */
+#define MAX_SIZET	((size_t)(~(size_t)0))
+#endif
+
+
+/* userdata to box arbitrary data */
+typedef struct UBox {
+	void *box;
+	size_t bsize;
+} UBox;
+
+
+static void *resizebox (lua_State *L, int idx, size_t newsize) {
+	void *ud;
+	lua_Alloc allocf = lua_getallocf(L, &ud);
+	UBox *box = (UBox *)lua_touserdata(L, idx);
+	void *temp = allocf(ud, box->box, box->bsize, newsize);
+	if (l_unlikely(temp == NULL && newsize > 0)) {  /* allocation error? */
+		lua_pushliteral(L, "not enough memory");
+		lua_error(L);  /* raise a memory error */
+	}
+	box->box = temp;
+	box->bsize = newsize;
+	return temp;
+}
+
+
+static int boxgc (lua_State *L) {
+	resizebox(L, 1, 0);
+	return 0;
+}
+
+
+static const luaL_Reg boxmt[] = {  /* box metamethods */
+	{"__gc", boxgc},
+	{"__close", boxgc},
+	{NULL, NULL}
+};
+
+
+static void newbox (lua_State *L) {
+	UBox *box = (UBox *)lua_newuserdatauv(L, sizeof(UBox), 0);
+	box->box = NULL;
+	box->bsize = 0;
+	if (luaL_newmetatable(L, "_UBOX*"))  /* creating metatable? */
+		luaL_setfuncs(L, boxmt, 0);  /* set its metamethods */
+	lua_setmetatable(L, -2);
+}
+
+
 /*
 ** check whether buffer is using a userdata on the stack as a temporary
 ** buffer
 */
-#define buffonstack(B)	((B)->b != (B)->initb)
+#define buffonstack(B)	((B)->b != (B)->init.b)
+
+
+/*
+** Whenever buffer is accessed, slot 'idx' must either be a box (which
+** cannot be NULL) or it is a placeholder for the buffer.
+*/
+#define checkbufferlevel(B,idx)  \
+	lua_assert(buffonstack(B) ? lua_touserdata(B->L, idx) != NULL  \
+		                        : lua_touserdata(B->L, idx) == (void*)B)
+
+
+/*
+** Compute new size for buffer 'B', enough to accommodate extra 'sz'
+** bytes.
+*/
+static size_t newbuffsize (luaL_Buffer *B, size_t sz) {
+	size_t newsize = B->size * 2;  /* double buffer size */
+	if (l_unlikely(MAX_SIZET - sz < B->n))  /* overflow in (B->n + sz)? */
+		return luaL_error(B->L, "buffer too large");
+	if (newsize < B->n + sz)  /* double is not big enough? */
+		newsize = B->n + sz;
+	return newsize;
+}
+
+
+/*
+** Returns a pointer to a free area with at least 'sz' bytes in buffer
+** 'B'. 'boxidx' is the relative position in the stack where is the
+** buffer's box or its placeholder.
+*/
+static char *prepbuffsize (luaL_Buffer *B, size_t sz, int boxidx) {
+	checkbufferlevel(B, boxidx);
+	if (B->size - B->n >= sz)  /* enough space? */
+		return B->b + B->n;
+	else {
+		lua_State *L = B->L;
+		char *newbuff;
+		size_t newsize = newbuffsize(B, sz);
+		/* create larger buffer */
+		if (buffonstack(B))  /* buffer already has a box? */
+			newbuff = (char *)resizebox(L, boxidx, newsize);  /* resize it */
+		else {  /* no box yet */
+			lua_remove(L, boxidx);  /* remove placeholder */
+			newbox(L);  /* create a new box */
+			lua_insert(L, boxidx);  /* move box to its intended position */
+			lua_toclose(L, boxidx);
+			newbuff = (char *)resizebox(L, boxidx, newsize);
+			memcpy(newbuff, B->b, B->n * sizeof(char));  /* copy original content */
+		}
+		B->b = newbuff;
+		B->size = newsize;
+		return newbuff + B->n;
+	}
+}
 
 
 LUAMEMLIB_API void luamem_pushresult (luaL_Buffer *B) {
 	lua_State *L = B->L;
-	if (!buffonstack(B) || B->n < B->size) {
+	checkbufferlevel(B, -1);
+	if (buffonstack(B)) {
+		UBox *box = (UBox *)lua_touserdata(L, -1);
+		luamem_newref(L);
+		luamem_setref(L, -1, (char *)box->box, box->bsize, luamem_free);
+		box->box = NULL;
+		box->bsize = 0;
+	} else {
 		char *p = (char *)luamem_newalloc(L, B->n * sizeof(char));
-		/* move content to new buffer */
 		memcpy(p, B->b, B->n * sizeof(char));
-		if (buffonstack(B))
-			lua_remove(L, -2);  /* remove old buffer */
 	}
+	lua_remove(L, -2);  /* remove box or placeholder from the stack */
 }
 
 
@@ -232,12 +333,12 @@ LUAMEMLIB_API void luamem_pushresultsize (luaL_Buffer *B, size_t sz) {
 
 LUAMEMLIB_API void luamem_addvalue (luaL_Buffer *B) {
 	lua_State *L = B->L;
-	size_t l;
-	const char *s = luamem_tostring(L, -1, &l);
-	if (buffonstack(B))
-		lua_insert(L, -2);  /* put value below buffer */
-	luaL_addlstring(B, s, l);
-	lua_remove(L, (buffonstack(B)) ? -2 : -1);  /* remove value */
+	size_t len;
+	const char *s = luamem_tostring(L, -1, &len);
+	char *b = prepbuffsize(B, len, -2);
+	memcpy(b, s, len * sizeof(char));
+	luaL_addsize(B, len);
+	lua_pop(L, 1);  /* pop string */
 }
 
 /* }====================================================== */

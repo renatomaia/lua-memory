@@ -45,6 +45,7 @@ LUAMEMLIB_API char *(luamem_checkmemory) (lua_State *L, int idx, size_t *len);
 
 LUAMEMLIB_API int (luamem_isstring) (lua_State *L, int idx);
 LUAMEMLIB_API const char *(luamem_tostring) (lua_State *L, int idx, size_t *len);
+LUAMEMLIB_API const char *(luamem_asstring) (lua_State *L, int idx, size_t *len);
 LUAMEMLIB_API const char *(luamem_checkstring) (lua_State *L, int idx, size_t *len);
 LUAMEMLIB_API const char *(luamem_optstring) (lua_State *L, int arg, const char *def, size_t *len);
 
@@ -59,8 +60,8 @@ LUAMEMLIB_API size_t (luamem_checklenarg) (lua_State *L, int idx);
 ** Some sizes are better limited to fit in 'int', but must also fit in
 ** 'size_t'. (We assume that 'lua_Integer' cannot be smaller than 'int'.)
 */
-#define LUAMEM_MAXALLOC  \
-	(sizeof(size_t) < sizeof(int) ? (~(size_t)0) : (size_t)(INT_MAX))
+#define LUAMEM_MAXSIZE  \
+	(sizeof(size_t) < sizeof(int) ? ((size_t)(~(size_t)0)) : (size_t)(INT_MAX))
 
 
 /*

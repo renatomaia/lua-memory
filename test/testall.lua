@@ -37,7 +37,7 @@ local function testpack(case, ...)
 			local ok, pos, i = nil, index, 1
 			for format in string.gmatch(case, "%s(%S+)") do
 				ok, pos = memory.pack(mem, options..format, pos, select(i, ...))
-				assert(ok == (#mem>0 or kind~="resizable"))  -- TODO: bug?
+				assert(ok, pos)
 				-- TODO: test attempt to pack with not enough space.
 				i = i+1
 			end
@@ -247,7 +247,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 				memory.fill(b, S"xuxu", i, j, 5)
 				assert(memory.diff(b, data) == nil)
 				memory.fill(b, S"abc", i, j)
-				assert(memory.diff(b, expected) == nil)
+				assert(memory.diff(b, expected) == nil, tostring(b))
 				memory.fill(b, 0x55, i, j)
 				assert(memory.diff(b, expected:gsub("%S", "\x55")) == nil)
 				memory.fill(b, S"XYZ", i, j, 3)
@@ -271,16 +271,11 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		check("         a",-1)
 		check("      abca",-4)
 		check("    abc   ",-6, -4)
-		local function check(...)
-			local b = memory.create(data)
-			asserterr("index out of bounds", memory.fill, b, "xuxu", ...)
-		end
-		check( mini, maxi)
-		check( mini, mini)
-		check( mini, maxi)
-		check( 0, 0)
-		check( mini, -4)
-		check( 3, maxi)
+		check("          ", 0, 0)
+		check("abcabcabca", mini, maxi)
+		check("          ", mini, mini)
+		check("abcabca   ", mini, -4)
+		check("  abcabcab", 3, maxi)
 		do
 			local b = memory.create(full)
 			memory.fill(b, b)
@@ -473,7 +468,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		assert(pos == 3002)
 		assert(tostring(mem) == s.."\0");
 
-		asserterr("too short", memory.unpack, nozero, "z");
+		asserterr("unfinished string for format 'z'", memory.unpack, nozero, "z");
 
 		for i = 2, NB do
 			testpack(" s"..i, s)
@@ -482,7 +477,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		local x = string.pack("s", "alo")
 		asserterr("too short", memory.unpack, memory.create(x:sub(1, -2)), "s")
 		asserterr("too short", memory.unpack, memory.create("abcd"), "c5")
-		asserterr("too short", memory.unpack, memory.create(), "z")
+		asserterr("unfinished string for format 'z'", memory.unpack, memory.create(), "z")
 		asserterr("out of limits", memory.pack, memory.create(103), "s100", 1, "alo")
 	end
 
@@ -544,12 +539,10 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		assert(i == 1 and p == 5)
 
 		-- limits
-		for i = 1, #mem+1 do
+		for i = -(#mem+1), #mem+1 do
 			assert(memory.unpack(mem, "c0", i) == "")
 		end
-		asserterr("out of bounds", memory.unpack, mem, "c0", 0)
 		asserterr("out of bounds", memory.unpack, mem, "c0", #mem+2)
-		asserterr("out of bounds", memory.unpack, mem, "c0", -(#mem+1))
 	end
 end
 
