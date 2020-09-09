@@ -120,16 +120,26 @@ Returns a string with the contents of memory or string `m` from `i` until `j`;
 The default value for `i` is 1;
 the default value for `j` is -1 (which is the same as the size of `m`).
 
-### `memory.pack (m, fmt, i, v...)`
+### `memory.pack (m, fmt, i, j, o, v...)`
 
-Serializes in memory `m`, from position `i`, the values `v...` in binary form according to the format `fmt` (see the [Lua manual](http://www.lua.org/manual/5.3/manual.html#6.4.2)).
-Returns a boolean indicating whether all values were packed in memory `m`, followed by the index of the first unwritten byte in `m` and all the values `v...` that were not packed.
+Serializes into memory `m`, from position `i` until `j`, the values `v...` in binary form according to the format from position `o` of string `fmt` (see the [Lua manual](http://www.lua.org/manual/5.3/manual.html#6.4.2)).
+Returns a boolean indicating whether all values were packed in memory `m`, followed by the following values:
+- index of the first unwritten byte in `m`.
+- index in `m` that should be writable for the call to progress.
+- the index of the first unprocessed byte in `fmt`.
+- all the values `v...` that were not packed.
 
-### `memory.unpack (m, fmt [, i])`
+### `memory.unpack (m, fmt [, i [, j [, o]]])`
 
-Returns the values encoded in position `i` of memory or string `m`, according to the format `fmt`, as in function [memory.pack](#memorypack-m-i-fmt-v-);
+Returns the values encoded in position `i` up to `j` of memory or string `m`, according to the format from position `o` of string `fmt`, as in function [memory.pack](#memorypack-m-i-fmt-v-);
 The default value for `i` is 1.
-After the read values, this function also returns the index of the first unread byte in `m`. 
+The default value for `j` is -1.
+The default value for `o` is 1.
+Returns a boolean indicating whether all values were unpacked from memory `m`, followed by the following values:
+- index of the first unwritten byte in `m`.
+- index in `m` that should contain data for the call to progress.
+- the index of the first unprocessed byte in `fmt`.
+- all the decoded values.
 
 C Library API
 -------------

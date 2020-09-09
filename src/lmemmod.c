@@ -549,12 +549,20 @@ static char *getbytes (char **b, size_t *i, size_t lb, size_t sz) {
 	return NULL;
 }
 
-static int packfailed (lua_State *L, size_t i, size_t arg) {
-	lua_pushboolean(L, 0);
-	lua_replace(L, arg-2);
+static int retresults (lua_State *L,
+                       size_t os,
+                       size_t i,
+                       size_t size,
+                       size_t arg) {
+	lua_pushboolean(L, size == 0);
+	lua_replace(L, arg-4);
 	lua_pushinteger(L, i+1);
+	lua_replace(L, arg-3);
+	lua_pushinteger(L, i+size);
+	lua_replace(L, arg-2);
+	lua_pushinteger(L, os+1);
 	lua_replace(L, arg-1);
-	return 3+lua_gettop(L)-arg;
+	return 5+lua_gettop(L)-arg;
 }
 
 static int packchar (char **b, size_t *i, size_t lb, const char c) {
@@ -622,20 +630,23 @@ static void copywithendian (volatile char *dest, volatile const char *src,
 
 static int mem_pack (lua_State *L) {
 	Header h;
-	size_t lb;
+	size_t lb, lf, i, os;
+	int arg = 5;  /* current argument to pack */
 	char *mem = luamem_checkmemory(L, 1, &lb);
-	const char *fmt = luaL_checkstring(L, 2);  /* format string */
-	size_t i = posrelatI(luaL_checkinteger(L, 3), lb) - 1;
-	int arg = 3;  /* current argument to pack */
-	luaL_argcheck(L, i <= lb, 3, "index out of bounds");
+	const char *fmt, *format = luaL_checklstring(L, 2, &lf);  /* format string */
+	i = posrelatI(luaL_optinteger(L, 3, 1), lb) - 1;
+	lb = getendpos(L, 4, -1, lb);
+	os = posrelatI(luaL_optinteger(L, 5, 1), lf) - 1;
 	initheader(L, &h);
 	mem += i;
+	fmt = format + (os < lf ? os : lf-1);
 	while (*fmt != '\0') {
 		int size, ntoalign;
+		size_t fmtidx = fmt-format;
 		KOption opt = getdetails(&h, i, &fmt, &size, &ntoalign);
 		arg++;
 		if (!getbytes(&mem, &i, lb, ntoalign))  /* skip alignment */
-			return packfailed(L, i, arg);
+			return retresults(L, fmtidx, i, ntoalign+size, arg);
 		switch (opt) {
 			case Kint: {  /* signed integers */
 				lua_Integer n = luaL_checkinteger(L, arg);
@@ -644,7 +655,7 @@ static int mem_pack (lua_State *L) {
 					luaL_argcheck(L, -lim <= n && n < lim, arg, "integer overflow");
 				}
 				if (!packint(&mem, &i, lb, (lua_Unsigned)n, h.islittle, size, (n < 0)))
-					return packfailed(L, i, arg);
+					return retresults(L, fmtidx, i, size, arg);
 				break;
 			}
 			case Kuint: {  /* unsigned integers */
@@ -653,14 +664,14 @@ static int mem_pack (lua_State *L) {
 					luaL_argcheck(L, (lua_Unsigned)n < ((lua_Unsigned)1 << (size * NB)),
 					                 arg, "unsigned overflow");
 				if (!packint(&mem, &i, lb, (lua_Unsigned)n, h.islittle, size, 0))
-					return packfailed(L, i, arg);
+					return retresults(L, fmtidx, i, size, arg);
 				break;
 			}
 			case Kfloat: {  /* floating-point options */
 				volatile Ftypes u;
 				lua_Number n;
 				char *data = getbytes(&mem, &i, lb, size);
-				if (!data) return packfailed(L, i, arg);
+				if (!data) return retresults(L, fmtidx, i, size, arg);
 				n = luaL_checknumber(L, arg);  /* get argument */
 				if (size == sizeof(u.f)) u.f = (float)n;  /* copy it into 'u' */
 				else if (size == sizeof(u.d)) u.d = (double)n;
@@ -674,7 +685,7 @@ static int mem_pack (lua_State *L) {
 				const char *s = luamem_checkstring(L, arg, &len);
 				luaL_argcheck(L, len == (size_t)size, arg, "wrong length");
 				if (!packstream(&mem, &i, lb, s, size))
-					return packfailed(L, i, arg);
+					return retresults(L, fmtidx, i, size, arg);
 				break;
 			}
 			case Kstring: {  /* strings with length count */
@@ -685,7 +696,7 @@ static int mem_pack (lua_State *L) {
 				                 arg, "string length does not fit in given size");
 				if (!packint(&mem, &i, lb, (lua_Unsigned)len, h.islittle, size, 0) ||  /* pack length */
 				    !packstream(&mem, &i, lb, s, len))
-					return packfailed(L, i, arg);
+					return retresults(L, fmtidx, i, size+len, arg);
 				break;
 			}
 			case Kzstr: {  /* zero-terminated string */
@@ -694,12 +705,12 @@ static int mem_pack (lua_State *L) {
 				luaL_argcheck(L, memchr(s, '\0', len) == NULL, arg,
 				                 "string contains zeros");
 				if (!packstream(&mem, &i, lb, s, len) || !packchar(&mem, &i, lb, '\0'))
-					return packfailed(L, i, arg);
+					return retresults(L, fmtidx, i, len+1, arg);
 				break;
 			}
 			case Kpadding: {
 				if (!getbytes(&mem, &i, lb, 1))
-					return packfailed(L, i, arg);
+					return retresults(L, fmtidx, i, 1, arg);
 				/* go through */
 			}
 			case Kpaddalign: case Knop:
@@ -707,9 +718,7 @@ static int mem_pack (lua_State *L) {
 				break;
 		}
 	}
-	lua_pushboolean(L, 1);
-	lua_pushinteger(L, i+1);
-	return 2;
+	return retresults(L, fmt-format, i, 0, arg+1);
 }
 
 
@@ -749,18 +758,23 @@ static lua_Integer unpackint (lua_State *L, const char *str,
 
 static int mem_unpack (lua_State *L) {
 	Header h;
-	size_t ld;
+	size_t ld, lf, pos, os;
 	const char *data = luamem_checkmemory(L, 1, &ld);
-	const char *fmt = luaL_checkstring(L, 2);
-	size_t pos = posrelatI(luaL_optinteger(L, 3, 1), ld) - 1;
+	const char *fmt, *format = luaL_checklstring(L, 2, &lf);
+	pos = posrelatI(luaL_optinteger(L, 3, 1), ld) - 1;
+	ld = getendpos(L, 4, -1, ld);
+	os = posrelatI(luaL_optinteger(L, 5, 1), lf) - 1;
 	int n = 0;  /* number of results */
+	lua_settop(L, 5);
 	luaL_argcheck(L, pos <= ld, 3, "index out of bounds");
 	initheader(L, &h);
+	fmt = format + (os < lf ? os : lf-1);
 	while (*fmt != '\0') {
 		int size, ntoalign;
+		size_t fmtidx = fmt-format;
 		KOption opt = getdetails(&h, pos, &fmt, &size, &ntoalign);
-		luaL_argcheck(L, (size_t)ntoalign + size <= ld - pos, 2,
-		                "data string too short");
+		if ((size_t)ntoalign+size > ld-pos)
+			return retresults(L, fmtidx, pos, ntoalign+size, 6);
 		pos += ntoalign;  /* skip alignment */
 		/* stack space for item + next position */
 		luaL_checkstack(L, 1, "too many results");
@@ -789,15 +803,15 @@ static int mem_unpack (lua_State *L) {
 			}
 			case Kstring: {
 				size_t len = (size_t)unpackint(L, data + pos, h.islittle, size, 0);
-				luaL_argcheck(L, len <= ld - pos - size, 2, "data string too short");
-				lua_pushlstring(L, data + pos + size, len);
+				if (len > ld-pos-size) return retresults(L, fmtidx, pos, size+len, 6);
+				lua_pushlstring(L, data+pos+size, len);
 				pos += len;  /* skip string */
 				break;
 			}
 			case Kzstr: {
 				size_t len;
-				const char *z = (const char *)memchr(data + pos, '\0', ld - pos);
-				luaL_argcheck(L, z, 2, "unfinished string for format 'z'");
+				const char *z = (const char *)memchr(data + pos, '\0', ld-pos);
+				if (z == NULL) return retresults(L, fmtidx, pos, 1+ld-pos, 6);
 				len = (size_t)(z - data - pos);
 				lua_pushlstring(L, data + pos, len);
 				pos += len + 1;  /* skip string plus final '\0' */
@@ -809,8 +823,7 @@ static int mem_unpack (lua_State *L) {
 		}
 		pos += size;
 	}
-	lua_pushinteger(L, pos + 1);  /* next position */
-	return n + 1;
+	return retresults(L, fmt-format, pos, 0, 6);
 }
 
 /* }====================================================== */

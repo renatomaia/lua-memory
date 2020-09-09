@@ -12,11 +12,14 @@ local function asserterr(msg, f, ...)
 end
 
 local function assertret(expected, ...)
+
+print(...)
+
 	for i, v in ipairs(expected) do
 		assert(v == select(i, ...), string.format("%s ~= %s", tostring(v), tostring(select(i,...))))
 	end
-	assert(#expected+1 == select("#", ...))
-	return select(#expected+1, ...)
+	assert(#expected == select("#", ...))
+	return ...
 end
 
 local function testpack(case, ...)
@@ -33,33 +36,58 @@ local function testpack(case, ...)
 			local expected = spec.prefix..packed..spec.suffix
 			local mem = memory.create(#expected)
 
+			local ends = {}
 			local options = string.match(case, "^%S*")
-			local ok, pos, i = nil, index, 1
+			local pos = index
+			local i = 1
 			for format in string.gmatch(case, "%s(%S+)") do
-				ok, pos = memory.pack(mem, options..format, pos, select(i, ...))
-				assert(ok, pos)
+				local value = select(i, ...)
+
+				local ok, ini1, end1, fmt1, extra = memory.pack(mem, options..format,
+				                                         pos, nil, nil, value)
+				assert(ok == true)
+				assert(ini1 > pos)
+				assert(end1 == ini1-1)
+				assert(fmt1 == #options+#format+1)
+				assert(extra == nil)
+
+				memory.fill(mem, 0, pos, ini1-1)
+				assertret({true, ini1, end1, fmt1+3},
+				          memory.pack(mem, "XXX"..options..format, pos, ini1-1, 4, value))
 				-- TODO: test attempt to pack with not enough space.
+				assertret({false, pos, ini1-1, #options+1, value},
+				          memory.pack(mem, options..format, pos, ini1-2, nil, value))
+
+				ends[i] = ini1
+				pos = ini1
 				i = i+1
 			end
 			assert(pos == index+size)
 			assert(tostring(mem) == expected)
 			pos, i = index, 1
-			local sequence = {nil}
 			for format in string.gmatch(case, "%s%S+") do
-				sequence[1] = select(i, ...)
-				pos = assertret(sequence, memory.unpack(mem, options..format, pos))
+				local value = select(i, ...)
+
+				assertret({true, ends[i], ends[i]-1, #options+#format+1, value},
+				          memory.unpack(mem, options..format, pos))
+
+print(">>>", options..format)
+
+				assertret({false, pos, ends[i], #options+1},
+				          memory.unpack(mem, options..format, pos, ends[i]-2))
+
+				pos = ends[i]
 				i = i+1
 			end
 
 			local format, replaces = case, 1
 			while replaces > 0 do
 				memory.fill(mem, 0)
-				ok, pos = memory.pack(mem, format, index, ...)
-				assert(ok == true)
-				assert(pos == index+size)
+				assertret({true, index+size, index+size-1, #format+1},
+				          memory.pack(mem, format, index, nil, nil, ...))
 				assert(tostring(mem) == expected)
-				pos = assertret({...}, memory.unpack(mem, format, index))
-				assert(pos == index+size)
+				assertret({true, index+size, index+size-1, #format+1, ...},
+				          memory.unpack(mem, format, index))
 				format, replaces = string.gsub(format, " ", "")
 			end
 
@@ -508,11 +536,11 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		testpack(" b bXd b", 1, 2, 3)
 
 		local mem = memory.create("0123456701234567")
-		assert(assertret({}, memory.unpack(mem, "!8 xXi8")) == 9)
-		assert(assertret({}, memory.unpack(mem, "!8 xXi2")) == 3)
-		assert(assertret({}, memory.unpack(mem, "!2 xXi2")) == 3)
-		assert(assertret({}, memory.unpack(mem, "!2 xXi8")) == 3)
-		assert(assertret({}, memory.unpack(mem, "!16 xXi16")) == 17)
+		assert(memory.unpack(mem, "!8 xXi8") == 9)
+		assert(memory.unpack(mem, "!8 xXi2") == 3)
+		assert(memory.unpack(mem, "!2 xXi2") == 3)
+		assert(memory.unpack(mem, "!2 xXi8") == 3)
+		assert(memory.unpack(mem, "!16 xXi16") == 17)
 
 		asserterr("invalid next option", memory.pack, mem, "X", 1)
 		asserterr("invalid next option", memory.pack, mem, "Xc1", 1)
