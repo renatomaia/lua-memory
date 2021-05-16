@@ -1,0 +1,93 @@
+# See ../README.md for installation and 
+# == CHANGE THE SETTINGS BELOW TO SUIT YOUR ENVIRONMENT =======================
+
+LUA_DIR= C:\Installed
+LUA_INCDIR= $(LUA_DIR)\include
+LUA_LIBDIR= $(LUA_DIR)\lib
+LUA_BINDIR= $(LUA_DIR)\bin
+LUA_LIB= lua.lib
+
+INSTALL_DIR= $(LUA_DIR)
+INSTALL_BINDIR= $(INSTALL_DIR)\bin
+INSTALL_INCDIR= $(INSTALL_DIR)\include
+INSTALL_LIBDIR= $(INSTALL_DIR)\lib
+INSTALL_MODDIR= $(INSTALL_DIR)\lib\lua\5.4
+
+MOD_L= memory
+LIB_L= lmemlib
+
+CFLAGS= /Isrc /I$(LUA_INCDIR) $(SYSCFLAGS) $(MYCFLAGS)
+LDFLAGS= /LIBPATH:$(LUA_LIBDIR) $(SYSLDFLAGS) $(MYLDFLAGS)
+LIBS= $(LUA_LIB) $(SYSLIBS) $(MYLIBS)
+
+LINK= link.exe
+CC= cl.exe
+RM= del
+COPY= copy
+MKDIR= mkdir
+
+SYSCFLAGS=
+SYSLDFLAGS=
+SYSLIBS=
+
+MYCFLAGS=
+MYLDFLAGS=
+MYLIBS=
+
+# == END OF USER SETTINGS -- NO NEED TO CHANGE ANYTHING BELOW THIS LINE =======
+
+MOD_O= lmemmod.obj
+LIB_O= lmemlib.obj
+MOD_T= $(MOD_L).dll
+LIB_T= $(LIB_L).dll
+LIB_A= $(LIB_T) $(LIB_L).dll.manifest $(LIB_L).exp $(LIB_L).lib
+MOD_A= $(MOD_T) $(MOD_L).dll.manifest $(MOD_L).exp $(MOD_L).lib
+
+ALL_O= $(LIB_O) $(MOD_O)
+ALL_T= $(LIB_T) $(MOD_T)
+ALL_A= $(LIB_A) $(MOD_A)
+
+{src\}.c.obj:
+	$(CC) $(CFLAGS) /c $<
+
+# Targets start here.
+all: $(ALL_T)
+
+obj: $(ALL_O)
+
+lib: $(LIB_T)
+
+mod: $(MOD_T)
+
+$(MOD_T): $(MOD_O) $(LIB_T)
+	$(LINK) /dll /def:etc\memory.def /out:$@ $(LDFLAGS) $(MOD_O) $(LIB_L).lib $(LIBS)
+
+$(LIB_T): $(LIB_O)
+	$(LINK) /dll /def:etc\luamem.def /out:$@ $(LDFLAGS) $** $(LIBS)
+
+clean:
+	$(RM) $(ALL_A) $(ALL_O)
+
+echo:
+	@echo "CC= $(CC)"
+	@echo "CFLAGS= $(CFLAGS)"
+	@echo "LDFLAGS= $(LDFLAGS)"
+	@echo "LIBS= $(LIBS)"
+	@echo "LINK= $(LINK)"
+	@echo "RM= $(RM)"
+
+$(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(INSTALL_MODDIR):
+	$(MKDIR) $@
+
+install: install_lib install_mod
+
+install_lib: $(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(LIB_T)
+	$(COPY) src\lmemlib.h $(INSTALL_INCDIR)
+	$(COPY) $(LIB_L).lib $(INSTALL_LIBDIR)
+	$(COPY) $(LIB_T) $(INSTALL_BINDIR)
+
+install_mod: $(INSTALL_MODDIR) $(MOD_T)
+	$(COPY) $(MOD_T) $(INSTALL_MODDIR)
+
+# list targets that do not create files (but not all makes understand .PHONY)
+.PHONY: all obj lib mod clean echo install
