@@ -1,21 +1,20 @@
 # == CHANGE THE SETTINGS BELOW TO SUIT YOUR ENVIRONMENT =======================
 
-LUA_HOME= /usr/local
-LUA_INC= $(LUA_HOME)/include
-LUA_LIB= $(LUA_HOME)/lib
-LUA_BIN= $(LUA_HOME)/bin
+LUA_DIR= /usr/local
+LUA_INCDIR= $(LUA_DIR)/include
 
 # Your platform. See PLATS for possible values.
-PLAT= none
+PLAT= guess
 
 CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -I$(LUA_INC) $(SYSCFLAGS) $(MYCFLAGS)
+CFLAGS= -O2 -Wall -I$(LUA_INCDIR) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= $(SYSLIBS) $(MYLIBS)
 
 AR= ar rcu
 RANLIB= ranlib
 RM= rm -f
+UNAME= uname
 
 SYSCFLAGS=
 SYSLDFLAGS=
@@ -27,42 +26,40 @@ MYLIBS=
 
 # == END OF USER SETTINGS -- NO NEED TO CHANGE ANYTHING BELOW THIS LINE =======
 
-PLATS= linux macosx
+PLATS= guess generic linux macosx solaris
 
-MEM_O=	lmemmod.o
-API_O=	lmemlib.o
+MEM_O= lmemmod.o
+API_O= lmemlib.o
 
-MEM_M=	memory.so
-API_S=	libluamemlib.so
-LIB_S=	libluamemory.so
-LIB_A=	libluamemory.a
+MEM_M= memory.so
+API_S= liblmemlib.so
+LIB_A= liblmemory.a
 
 ALL_O= $(MEM_O) $(API_O)
 ALL_A= $(LIB_A)
-ALL_S= $(LIB_S) $(API_S)
+ALL_S= $(API_S)
 ALL_M= $(MEM_M)
 ALL_T= $(ALL_A) $(ALL_S) $(ALL_M)
 
 default: $(PLAT)
 
-all:	$(ALL_T)
+all: $(ALL_T)
 
-o:	$(ALL_O)
+o: $(ALL_O)
 
-a:	$(ALL_A)
+a: $(ALL_A)
 
-so:	$(ALL_S)
+so: $(ALL_S)
 
-m:	$(ALL_M)
+lib: a so
+
+mod: $(ALL_M)
 
 $(API_S): $(API_O)
-	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(MEM_M): $(MEM_O) $(API_S)
-	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
-
-$(LIB_S): $(LIB_O) $(API_S) $(ALL_M)
-	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 $(LIB_A): $(ALL_O)
 	$(AR) $@ $^
@@ -83,21 +80,32 @@ echo:
 	@echo "AR= $(AR)"
 	@echo "RANLIB= $(RANLIB)"
 	@echo "RM= $(RM)"
+	@echo "UNAME= $(UNAME)"
 
 # Convenience targets for usual platforms
 ALL= all
 
-none:
-	@echo "Please do 'make PLATFORM' where PLATFORM is one of these:"
+help:
+	@echo "Do 'make PLATFORM' where PLATFORM is one of these:"
 	@echo "   $(PLATS)"
 
-linux:
-	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX -fpic" \
-	               SYSLDFLAGS="-Wl,-E -O -shared"
+guess:
+	@echo Guessing `$(UNAME)`
+	@$(MAKE) `$(UNAME)`
 
-macosx:
+generic: $(ALL)
+
+Linux linux:
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX -fpic" \
+	               SYSLDFLAGS="-shared"
+
+Darwin macos macosx:
 	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_MACOSX -fno-common" \
 	               SYSLDFLAGS="-bundle -undefined dynamic_lookup" \
-	               CC='export MACOSX_DEPLOYMENT_TARGET="10.10"; gcc'
+	               CC='export MACOSX_DEPLOYMENT_TARGET="10.10"; gcc' \
+	               LD='export MACOSX_DEPLOYMENT_TARGET="10.10"; gcc'
+
+SunOS solaris:
+	$(MAKE) $(ALL) SYSCFLAGS="-fpic" SYSLDFLAGS="-O -shared"
 
 # (end of Makefile)

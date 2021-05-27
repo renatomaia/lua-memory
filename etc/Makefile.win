@@ -4,14 +4,13 @@
 LUA_DIR= C:\Installed
 LUA_INCDIR= $(LUA_DIR)\include
 LUA_LIBDIR= $(LUA_DIR)\lib
-LUA_BINDIR= $(LUA_DIR)\bin
 LUA_LIB= lua.lib
 
 INSTALL_DIR= $(LUA_DIR)
 INSTALL_BINDIR= $(INSTALL_DIR)\bin
 INSTALL_INCDIR= $(INSTALL_DIR)\include
 INSTALL_LIBDIR= $(INSTALL_DIR)\lib
-INSTALL_MODDIR= $(INSTALL_DIR)\lib\lua\5.4
+INSTALL_CMODDIR= $(INSTALL_DIR)\lib\lua\5.4
 
 MOD_L= memory
 LIB_L= lmemlib
@@ -75,8 +74,13 @@ echo:
 	@echo "LIBS= $(LIBS)"
 	@echo "LINK= $(LINK)"
 	@echo "RM= $(RM)"
+	@echo "MKDIR= $(MKDIR)"
+	@echo "INSTALL_BINDIR= $(INSTALL_BINDIR)"
+	@echo "INSTALL_INCDIR= $(INSTALL_INCDIR)"
+	@echo "INSTALL_LIBDIR= $(INSTALL_LIBDIR)"
+	@echo "INSTALL_CMODDIR= $(INSTALL_CMODDIR)"
 
-$(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(INSTALL_MODDIR):
+$(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(INSTALL_CMODDIR):
 	$(MKDIR) $@
 
 install: install_lib install_mod
@@ -86,8 +90,8 @@ install_lib: $(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(LIB_T)
 	$(COPY) $(LIB_L).lib $(INSTALL_LIBDIR)
 	$(COPY) $(LIB_T) $(INSTALL_BINDIR)
 
-install_mod: $(INSTALL_MODDIR) $(MOD_T)
-	$(COPY) $(MOD_T) $(INSTALL_MODDIR)
+install_mod: $(INSTALL_CMODDIR) $(MOD_T)
+	$(COPY) $(MOD_T) $(INSTALL_CMODDIR)
 
 # list targets that do not create files (but not all makes understand .PHONY)
 .PHONY: all obj lib mod clean echo install
