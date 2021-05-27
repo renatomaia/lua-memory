@@ -19,7 +19,7 @@ dependencies = {
 external_dependencies = {
 	LUAMEM = {
 		header = "lmemlib.h",
-		library = "luamem",
+		library = "lmemlib",
 	},
 }
 build = {

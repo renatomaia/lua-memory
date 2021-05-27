@@ -14,7 +14,7 @@ INSTALL_LIBDIR= $(INSTALL_DIR)\lib
 INSTALL_MODDIR= $(INSTALL_DIR)\lib\lua\5.4
 
 MOD_L= memory
-LIB_L= luamem
+LIB_L= lmemlib
 
 CFLAGS= /Isrc /I$(LUA_INCDIR) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= /LIBPATH:$(LUA_LIBDIR) $(SYSLDFLAGS) $(MYLDFLAGS)
@@ -79,10 +79,14 @@ echo:
 $(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(INSTALL_MODDIR):
 	$(MKDIR) $@
 
-install: $(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(INSTALL_MODDIR) $(LIB_T) $(MOD_T)
+install: install_lib install_mod
+
+install_lib: $(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(LIB_T)
 	$(COPY) src\lmemlib.h $(INSTALL_INCDIR)
 	$(COPY) $(LIB_L).lib $(INSTALL_LIBDIR)
 	$(COPY) $(LIB_T) $(INSTALL_BINDIR)
+
+install_mod: $(INSTALL_MODDIR) $(MOD_T)
 	$(COPY) $(MOD_T) $(INSTALL_MODDIR)
 
 # list targets that do not create files (but not all makes understand .PHONY)
