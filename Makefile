@@ -39,6 +39,9 @@ LUA_VER= 5.4
 # Targets start here.
 all: $(PLAT)
 
+lib:
+	@cd src && $(MAKE) $(PLAT) ALL=lib
+
 $(PLATS) help clean:
 	@cd src && $(MAKE) $@
 
