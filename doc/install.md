@@ -37,7 +37,7 @@ LuaRocks
 --------
 
 Prior to install it as a rock,
-you should first build and install the C library.
+you should first build and install its C library.
 This way,
 you can provide the C library to LuaRocks as an [external dependency](https://github.com/luarocks/luarocks/wiki/Platform-agnostic-external-dependencies) to be used for building rocks.
 So,

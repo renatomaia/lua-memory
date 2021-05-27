@@ -4,13 +4,13 @@
 PLAT= guess
 
 # Where to install. The installation starts in the src directory,
-# so take care if INSTALL_TOP is not an absolute path. See the local target.
-# You may want to make INSTALL_CMOD consistent with LUA_ROOT, and LUA_CDIR
+# so take care if INSTALL_DIR is not an absolute path. See the local target.
+# You may want to make INSTALL_CMODDIR consistent with LUA_ROOT, and LUA_CDIR
 # in luaconf.h.
-INSTALL_TOP= /usr/local
-INSTALL_INC= $(INSTALL_TOP)/include
-INSTALL_LIB= $(INSTALL_TOP)/lib
-INSTALL_CMOD= $(INSTALL_TOP)/lib/lua/$(LUA_VER)
+INSTALL_DIR= /usr/local
+INSTALL_INCDIR= $(INSTALL_DIR)/include
+INSTALL_LIBDIR= $(INSTALL_DIR)/lib
+INSTALL_CMODDIR= $(INSTALL_DIR)/lib/lua/$(LUA_VER)
 
 # How to install. If your install program does not support "-p", then
 # you may have to run ranlib on the installed liblua.a.
@@ -45,25 +45,25 @@ $(PLATS) help clean:
 install: install_lib install_mod
 
 install_lib:
-	cd src && $(MKDIR) $(INSTALL_INC) $(INSTALL_LIB)
-	cd src && $(INSTALL_DATA) $(TO_INC) $(INSTALL_INC)
-	cd src && $(INSTALL_DATA) $(TO_LIB) $(INSTALL_LIB)
+	cd src && $(MKDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR)
+	cd src && $(INSTALL_DATA) $(TO_INC) $(INSTALL_INCDIR)
+	cd src && $(INSTALL_DATA) $(TO_LIB) $(INSTALL_LIBDIR)
 
 install_mod:
-	cd src && $(MKDIR) $(INSTALL_CMOD)
-	cd src && $(INSTALL_DATA) $(TO_CMOD) $(INSTALL_CMOD)
+	cd src && $(MKDIR) $(INSTALL_CMODDIR)
+	cd src && $(INSTALL_DATA) $(TO_CMOD) $(INSTALL_CMODDIR)
 
 uninstall: uninstall_lib uninstall_mod
 
 uninstall_lib:
-	cd src && cd $(INSTALL_INC) && $(RM) $(TO_INC)
-	cd src && cd $(INSTALL_LIB) && $(RM) $(TO_LIB)
+	cd src && cd $(INSTALL_INCDIR) && $(RM) $(TO_INC)
+	cd src && cd $(INSTALL_LIBDIR) && $(RM) $(TO_LIB)
 
 uninstall_mod:
-	cd src && cd $(INSTALL_CMOD) && $(RM) $(TO_CMOD)
+	cd src && cd $(INSTALL_CMODDIR) && $(RM) $(TO_CMOD)
 
 local:
-	$(MAKE) install INSTALL_TOP=../install
+	$(MAKE) install INSTALL_DIR=../install
 
 # make may get confused with install/ if it does not support .PHONY.
 dummy:
@@ -76,17 +76,11 @@ echo:
 	@echo "TO_INC= $(TO_INC)"
 	@echo "TO_LIB= $(TO_LIB)"
 	@echo "TO_CMOD= $(TO_CMOD)"
-	@echo "INSTALL_TOP= $(INSTALL_TOP)"
-	@echo "INSTALL_INC= $(INSTALL_INC)"
-	@echo "INSTALL_LIB= $(INSTALL_LIB)"
-	@echo "INSTALL_CMOD= $(INSTALL_CMOD)"
+	@echo "INSTALL_DIR= $(INSTALL_DIR)"
+	@echo "INSTALL_INCDIR= $(INSTALL_INCDIR)"
+	@echo "INSTALL_LIBDIR= $(INSTALL_LIBDIR)"
+	@echo "INSTALL_CMODDIR= $(INSTALL_CMODDIR)"
 	@echo "INSTALL_DATA= $(INSTALL_DATA)"
-
-# Echo pkg-config data.
-pc:
-	@echo "prefix=$(INSTALL_TOP)"
-	@echo "libdir=$(INSTALL_LIB)"
-	@echo "includedir=$(INSTALL_INC)"
 
 # Targets that do not create files (not all makes understand .PHONY).
 .PHONY: all $(PLATS) help clean install install_lib install_mod \
