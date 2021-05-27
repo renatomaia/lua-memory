@@ -12,6 +12,7 @@ Documentation
 -------------
 
 - [License](LICENSE)
+- [Install](doc/install.md)
 - [Manual](doc/manual.md)
 - [Demos](demo/)
   - [Create Fixed-Size Memory](demo/fixed.lua)
