@@ -1,28 +1,16 @@
-Index
-=====
+Summary
+=======
 
-[Lua functions](#writable-byte-sequences) | [C API](#c-library-api) | [C API](#c-library-api)
----|---|---
-[`memory.create`](#memorycreate-s--i--j) | [`luamem_Unref`](#luamem_unref) | [`luamem_realloc`](#luamem_realloc)
-[`memory.diff`](#memorydiff-m1-m2) | [`luamem_addvalue`](#luamem_addvalue) | [`luamem_setref`](#luamem_setref)
-[`memory.fill`](#memoryfill-m-s--i--j--o) | [`luamem_checklenarg`](#luamem_checklenarg) | [`luamem_tomemory`](#luamem_tomemory)
-[`memory.find`](#memoryfind-m-s--i--j--o) | [`luamem_checkmemory`](#luamem_checkmemory) | [`luamem_tomemoryx`](#luamem_tomemoryx)
-[`memory.get`](#memoryget-m--i--j) | [`luamem_checkstring`](#luamem_checkstring) | [`luamem_tostring`](#luamem_tostring)
-[`memory.len`](#memorylen-m) | [`luamem_free`](#luamem_free) | [`luamem_type`](#luamem_type)
-[`memory.pack`](#memorypack-m-fmt-i-v) | [`luamem_ismemory`](#luamem_ismemory) |
-[`memory.resize`](#memoryresize-m-l--s) | [`luamem_isstring`](#luamem_isstring) | [`LUAMEM_ALLOC`](#luamem_newalloc)
-[`memory.set`](#memoryset-m-i-) | [`luamem_newalloc`](#luamem_newalloc) | [`LUAMEM_REF`](#luamem_newref)
-[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_newref`](#luamem_newref) | [`LUAMEM_TALLOC`](#luamem_tomemoryx)
-[`memory.type`](#memorytype-m) | [`luamem_pushresult`](#luamem_pushresult) | [`LUAMEM_TNONE`](#luamem_tomemoryx)
-[`memory.unpack`](#memoryunpack-m-fmt--i) | [`luamem_pushresultsize`](#luamem_pushresultsize) | [`LUAMEM_TREF`](#luamem_tomemoryx)
+- [Lua Module](#lua-module)
+- [C Library](#c-library)
+- [Index](#index)
 
-Contents
-========
+---
 
-Writable Byte Sequences
------------------------
+Lua Module
+==========
 
-This library provides generic functions for manipulation of writable memory areas.
+Module `memory` provides generic functions for manipulation of writable memory areas.
 A memory can have a fixed size or be resizable.
 When indexing a memory, the first byte is at position 1 (not at 0, as in C).
 Indices are allowed to be negative and are interpreted as indexing backwards, from the end of the memory.
@@ -49,10 +37,10 @@ If `m` is a number,
 creates a new fixed-size memory of `m` bytes with value zero.
 
 If `m` is a string or a memory,
-then the new memory will have the same size and contents of `m` from position `i` until position `j`.
+creates a new fixed-size memory with the same size and contents of the portion of `m` from position `i` until position `j`.
 
 If `m` is not provided,
-a resizable memory of zero bytes is created.
+a resizable memory of zero bytes (empty) is created.
 
 ### `memory.type (m)`
 
@@ -141,10 +129,12 @@ Returns the values encoded in position `i` of memory or string `m`, according to
 The default value for `i` is 1.
 After the read values, this function also returns the index of the first unread byte in `m`. 
 
-C Library API
--------------
+C Library
+=========
 
 This section describes the C API provided as a separate library to create and manipulate memory areas from C.
+All API functions and related types and constants are declared in the header file `lmemlib.h`.
+
 There are two distinct types of memory areas in the C API:
 
 - __allocated__: points to a constant block address with fixed size, which is automatically released when the memory is garbage collected (see [`luamem_newalloc`](#luamem_newalloc)).
@@ -327,3 +317,22 @@ void luamem_pushresultsize (luaL_Buffer *B, size_t sz);
 ```
 
 Equivalent to the sequence [`luaL_addsize`](http://www.lua.org/manual/5.3/manual.html#luaL_addsize), [`luamem_pushresult`](#luamem_pushresult).
+
+Index
+=====
+
+[Lua functions](#lua-module) | [C API](#c-library) | [C API](#c-library)
+---|---|---
+[`memory.create`](#memorycreate-m--i--j) | [`luamem_Unref`](#luamem_unref) | [`luamem_realloc`](#luamem_realloc)
+[`memory.diff`](#memorydiff-m1-m2) | [`luamem_addvalue`](#luamem_addvalue) | [`luamem_setref`](#luamem_setref)
+[`memory.fill`](#memoryfill-m-s--i--j--o) | [`luamem_checklenarg`](#luamem_checklenarg) | [`luamem_tomemory`](#luamem_tomemory)
+[`memory.find`](#memoryfind-m-s--i--j--o) | [`luamem_checkmemory`](#luamem_checkmemory) | [`luamem_tomemoryx`](#luamem_tomemoryx)
+[`memory.get`](#memoryget-m--i--j) | [`luamem_checkstring`](#luamem_checkstring) | [`luamem_tostring`](#luamem_tostring)
+[`memory.len`](#memorylen-m) | [`luamem_free`](#luamem_free) | [`luamem_type`](#luamem_type)
+[`memory.pack`](#memorypack-m-fmt-i-v) | [`luamem_ismemory`](#luamem_ismemory) |
+[`memory.resize`](#memoryresize-m-l--s) | [`luamem_isstring`](#luamem_isstring) | [`LUAMEM_ALLOC`](#luamem_newalloc)
+[`memory.set`](#memoryset-m-i-) | [`luamem_newalloc`](#luamem_newalloc) | [`LUAMEM_REF`](#luamem_newref)
+[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_newref`](#luamem_newref) | [`LUAMEM_TALLOC`](#luamem_tomemoryx)
+[`memory.type`](#memorytype-m) | [`luamem_pushresult`](#luamem_pushresult) | [`LUAMEM_TNONE`](#luamem_tomemoryx)
+[`memory.unpack`](#memoryunpack-m-fmt--i) | [`luamem_pushresultsize`](#luamem_pushresultsize) | [`LUAMEM_TREF`](#luamem_tomemoryx)
+
