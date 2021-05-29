@@ -3,10 +3,10 @@ Lua Memory
 
 The purpose of this project is to support manipulation of memory areas in Lua.
 These memory areas are much like Lua strings, but their contents can be modified in place and have an identity (selfness) independent from their contents.
-The library provides the following functionalities:
+The library provides the following components:
 
-- Support for writable memory areas.
-- C API to manipulate strings or memory areas in a unified way.
+- [Module](doc/manual.md#lua-module) to manipulate memory areas in Lua.
+- [C API](doc/manual.md#c-library) for manipulation memory areas in the same fashion of the [Lua C API](http://www.lua.org/manual/5.4/manual.html#4).
 
 Documentation
 -------------
@@ -24,12 +24,6 @@ Documentation
 - C API Use
   - [Module `memory` Source](src/lmemmod.c)
   - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/pull/1/files)
-
-TODO
-----
-
-- Finish adaptation of `string.pack` tests to test `memory.pack`.
-- Add support for bitwise operations on the memory contents.
 
 History
 -------
