@@ -1,124 +1,122 @@
-Index
-=====
+Summary
+=======
 
-[Lua functions](#writable-byte-sequences) | [C API](#c-library-api) | [C API](#c-library-api)
----|---|---
-[`memory.create`](#memorycreate-s--i--j) | [`luamem_Unref`](#luamem_unref) | [`luamem_realloc`](#luamem_realloc)
-[`memory.resize`](#memoryresize-m-l--s) | [`luamem_addvalue`](#luamem_addvalue) | [`luamem_setref`](#luamem_setref)
-[`memory.type`](#memorytype-m) | [`luamem_checklenarg`](#luamem_checklenarg) | [`luamem_tomemory`](#luamem_tomemory)
-[`memory.len`](#memorylen-m) | [`luamem_checkmemory`](#luamem_checkmemory) | [`luamem_tomemoryx`](#luamem_tomemoryx)
-[`memory.diff`](#memorydiff-m1-m2) | [`luamem_checkstring`](#luamem_checkstring) | [`luamem_tostring`](#luamem_tostring)
-[`memory.get`](#memoryget-m--i--j) | [`luamem_free`](#luamem_free) | [`luamem_type`](#luamem_type)
-[`memory.set`](#memoryset-m-i-) | [`luamem_ismemory`](#luamem_ismemory) |
-[`memory.fill`](#memoryfill-m-s--i--j--o) | [`luamem_isstring`](#luamem_isstring) | [`LUAMEM_ALLOC`](#luamem_newalloc)
-[`memory.find`](#memoryfind-m-s--i--j--o) | [`luamem_newalloc`](#luamem_newalloc) | [`LUAMEM_REF`](#luamem_newref)
-[`memory.pack`](#memorypack-m-fmt-i-v) | [`luamem_newref`](#luamem_newref) | [`LUAMEM_TALLOC`](#luamem_tomemoryx)
-[`memory.unpack`](#memoryunpack-m-fmt--i) | [`luamem_pushresult`](#luamem_pushresult) | [`LUAMEM_TNONE`](#luamem_tomemoryx)
-[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_pushresultsize`](#luamem_pushresultsize)| [`LUAMEM_TREF`](#luamem_tomemoryx)
+- [Lua Module](#lua-module)
+- [C Library](#c-library)
+- [Index](#index)
 
-Contents
-========
+---
 
-Writable Byte Sequences
------------------------
+Lua Module
+==========
 
-This library provides generic functions for manipulation of writable memory areas.
+Module `memory` provides generic functions for manipulation of writable memory areas.
 A memory can have a fixed size or be resizable.
 When indexing a memory, the first byte is at position 1 (not at 0, as in C).
 Indices are allowed to be negative and are interpreted as indexing backwards, from the end of the memory.
 Thus, the last byte is at position -1, and so on.
+
+Unless stated otherwise, arguments `i` and `j` in the functions below are indices of memory or string `m`,
+and are corrected following the same rules of these arguments in function [`string.sub`](http://www.lua.org/manual/5.4/manual.html#pdf-string.sub).
+Moreover,
+when these arguments are optional,
+the default value for `i` is 1,
+and the default value for `j` is `-1`
+(which is the same as the length of `m`).
 
 This library provides all its functions inside the table `memory`.
 It also sets a metatable for the memory where the `__index` field points to the `memory` table.
 Therefore, you can use the library functions in object-oriented style.
 For instance, `memory.get(m,i)` can be written as `m:get(i)`, where `m` is a memory.
 
-### `memory.create ([s [, i [, j]]])`
+### `memory.create ([m [, i [, j]]])`
 
-If `s` is a number, creates a new fixed-size memory of `s` bytes with value zero.
+Returns a new memory.
 
-If `s` is a string or a memory, then the new memory will have the same size and contents of `s` from position `i` until position `j`;
-`i` and `j` can be negative.
-The default value for `i` is 1;
-the default value for `j` is -1 (which is the same as the size of `s`).
-These indices are corrected following the same rules of function [`memory.get`](#memoryget-m-i-j).
+If `m` is a number,
+creates a new fixed-size memory of `m` bytes with value zero.
 
-If `s` is not provided, a resizable memory of zero bytes is created.
+If `m` is a string or a memory,
+creates a new fixed-size memory with the same size and contents of the portion of `m` from position `i` until position `j`.
 
-Returns the new memory.
-
-### `memory.resize (m, l [, s])`
-
-Changes resizable memory `m` to contain `l` bytes.
-All the initial bytes that fit in the new size are preserved.
-Any extra bytes are set with the contents of string `s` if provided, or they are set to value zero otherwise.
+If `m` is not provided,
+a resizable memory of zero bytes (empty) is created.
 
 ### `memory.type (m)`
 
-Returns `"fixed"` if `m` is a fixed-size memory, or `"resizable"` if it is a resizable memory, or `other` if it is an external memory created using the C API.
+Returns `"fixed"` if `m` is a fixed-size memory,
+or `"resizable"` if it is a resizable memory,
+or `"other"` if it is an external memory created using the C API.
 Otherwise it returns `nil`.
 
 ### `memory.len (m)`
 
 Returns the size of memory `m`.
 
+### `memory.resize (m, l [, s])`
+
+Changes resizable memory `m` to contain `l` bytes.
+
+All the initial bytes that fit in the new size are preserved.
+Any extra bytes are set with the contents of string or memory `s` when it is provided
+(the contents from `s` are copied repeatedly until they fill all the extra bytes).
+Otherwise,
+the extra bytes are set to zero.
+
 ### `memory.diff (m1, m2)`
 
-Returns the index of the first byte which values differ in `m1` and `m2`, or `nil` if both contain the same bytes.
-It also returns the result of a `m1 < m2` as if they were strings.
+Returns the index of the first byte which values differ in `m1` and `m2`,
+or `nil` if both contain the same bytes.
 
-Both `m1` and `m2` shall be memory or string.
+It also returns the result of `m1 < m2` as if they were strings.
 
-### `memory.find (m, s [, i [, j [, o]]])`
+`m1` and `m2` can be memory or string.
 
-Searches in memory or string `m` from position `i` until `j` for the contents of the memory or string `s` from position `o` of `s` that fits in this range;
-`i`, `j` and `o` can be negative.
-The default value for `i` and `o` is 1;
-the default value for `j` is -1 (which is the same as the size of `s`).
-These indices are corrected following the same rules of function [`memory.get`](#memoryget-m-i-j).
+### `memory.tostring (m [, i [, j]])`
 
-If, after the translation of negative indices, `o` is less than 1, it is corrected to 1.
-After the translation of negative indices, `i` and `j` must refer to valid positions of `m`.
-
-If `i` is greater and `j` (empty range), or `o` refers to a position beyond the size of `s` (no contents), or the bytes from `s` are not found in `m` this function returns `nil`.
-Otherwise, it return the position of the first byte found in `m`.
+Returns a string with the contents of memory or string `m` from `i` until `j`.
 
 ### `memory.get (m [, i [, j]])`
 
-Returns the values of bytes in memory `m` from `i` until `j`;
-`i` and `j` can be negative.
-The default value for `i` is 1;
-the default value for `j` is `i`.
+Returns the values of bytes in memory `m` from `i` until `j`.
+The default value for `j` is `i`.
 
-If, after the translation of negative indices, `i` is less than 1, it is corrected to 1.
-If `j` is greater than the size of `s`, it is corrected to that size.
-If, after these corrections, `i` is greater than `j`, the range is empty and no values are returned.
+If the range from `i` until `j` is empty,
+no values are returned.
 
 ### `memory.set (m, i, ...)`
 
-Sets the values of bytes in memory `m` from position `i` with values indicated by numbers received as arguments `...`;
-`i` can be negative.
-If there are more arguments than bytes in the range from `i` to the end of memory `m`, the extra arguments are ignored.
+Sets the values of bytes in memory `m` from position `i` with values indicated by numbers received as arguments `...`.
+If there are more arguments than bytes in the range from `i` to the end of memory `m`,
+the extra arguments are ignored.
+
+### `memory.find (m, s [, i [, j [, o]]])`
+
+Searches in memory or string `m` from position `i` until `j` for the contents of the memory or string `s` from position `o` of `s` that fits in this range.
+
+`o` can also be negative (to count backwards, from the end of `s`).
+The default value for `o` is 1.
+If, after the translation of negative indice, `o` is less than 1, it is corrected to 1.
+
+If `i` is after `j` (empty range),
+or `o` refers to a position beyond the size of `s` (no contents),
+or the bytes from `s` are not found in `m`,
+then this function returns `nil`.
+Otherwise, it return the position of the first byte found in `m`.
 
 ### `memory.fill (m, s [, i [, j [, o]]])`
 
-Sets the values of all bytes in memory `m` from position `i` until `j` with the contents of the memory or string `s` from position `o` of `s`;
-`i`, `j` and `o` can be negative.
+Sets the values of all bytes in memory `m` from position `i` until `j` with the contents of the memory or string `s` from position `o` of `s`.
 
-These indices are corrected following the same rules of function [`memory.find`](#memoryfind-m-s-i-j-o-).
+Indice `o` follows the same rules as in function [`memory.find`](#memoryfind-m-s--i--j--o).
 
-If `i` is greater and `j` (empty range), or `o` refers to a position beyond the size of `s` (no contents) this function has no effect.
+If `i` is greater and `j` (empty range),
+or `o` refers to a position beyond the size of `s` (no contents),
+then this function has no effect.
 Otherwise, the specified contents from `s` (from `o`) are copied repeatedly until they fill all bytes in the specified range of `m` (from `i` to `j`).
 
 If `s` is a number then all bytes in the specified range of `m` are set with the value of `s`.
 The value of `o` is ignored in this case.
-
-### `memory.tostring (m [, i [, j]])`
-
-Returns a string with the contents of memory or string `m` from `i` until `j`;
-`i` and `j` can be negative.
-The default value for `i` is 1;
-the default value for `j` is -1 (which is the same as the size of `m`).
 
 ### `memory.pack (m, fmt, i, v...)`
 
@@ -131,10 +129,12 @@ Returns the values encoded in position `i` of memory or string `m`, according to
 The default value for `i` is 1.
 After the read values, this function also returns the index of the first unread byte in `m`. 
 
-C Library API
--------------
+C Library
+=========
 
 This section describes the C API provided as a separate library to create and manipulate memory areas from C.
+All API functions and related types and constants are declared in the header file `lmemlib.h`.
+
 There are two distinct types of memory areas in the C API:
 
 - __allocated__: points to a constant block address with fixed size, which is automatically released when the memory is garbage collected (see [`luamem_newalloc`](#luamem_newalloc)).
@@ -317,3 +317,22 @@ void luamem_pushresultsize (luaL_Buffer *B, size_t sz);
 ```
 
 Equivalent to the sequence [`luaL_addsize`](http://www.lua.org/manual/5.3/manual.html#luaL_addsize), [`luamem_pushresult`](#luamem_pushresult).
+
+Index
+=====
+
+[Lua functions](#lua-module) | [C API](#c-library) | [C API](#c-library)
+---|---|---
+[`memory.create`](#memorycreate-m--i--j) | [`luamem_Unref`](#luamem_unref) | [`luamem_realloc`](#luamem_realloc)
+[`memory.diff`](#memorydiff-m1-m2) | [`luamem_addvalue`](#luamem_addvalue) | [`luamem_setref`](#luamem_setref)
+[`memory.fill`](#memoryfill-m-s--i--j--o) | [`luamem_checklenarg`](#luamem_checklenarg) | [`luamem_tomemory`](#luamem_tomemory)
+[`memory.find`](#memoryfind-m-s--i--j--o) | [`luamem_checkmemory`](#luamem_checkmemory) | [`luamem_tomemoryx`](#luamem_tomemoryx)
+[`memory.get`](#memoryget-m--i--j) | [`luamem_checkstring`](#luamem_checkstring) | [`luamem_tostring`](#luamem_tostring)
+[`memory.len`](#memorylen-m) | [`luamem_free`](#luamem_free) | [`luamem_type`](#luamem_type)
+[`memory.pack`](#memorypack-m-fmt-i-v) | [`luamem_ismemory`](#luamem_ismemory) |
+[`memory.resize`](#memoryresize-m-l--s) | [`luamem_isstring`](#luamem_isstring) | [`LUAMEM_ALLOC`](#luamem_newalloc)
+[`memory.set`](#memoryset-m-i-) | [`luamem_newalloc`](#luamem_newalloc) | [`LUAMEM_REF`](#luamem_newref)
+[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_newref`](#luamem_newref) | [`LUAMEM_TALLOC`](#luamem_tomemoryx)
+[`memory.type`](#memorytype-m) | [`luamem_pushresult`](#luamem_pushresult) | [`LUAMEM_TNONE`](#luamem_tomemoryx)
+[`memory.unpack`](#memoryunpack-m-fmt--i) | [`luamem_pushresultsize`](#luamem_pushresultsize) | [`LUAMEM_TREF`](#luamem_tomemoryx)
+
