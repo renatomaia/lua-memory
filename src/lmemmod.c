@@ -237,10 +237,10 @@ LUAMEMMOD_API int luaopen_memory (lua_State *L) {
 }
 
 /*
-* NOTE: most of the code below is copied from the source of Lua 5.3.1 by
+* NOTE: most of the code below is copied from the source of Lua 5.4.0 by
 *       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
 *
-* Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2020 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
