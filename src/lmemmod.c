@@ -137,7 +137,7 @@ static int mem_set (lua_State *L) {
 	size_t n = lua_gettop(L)-2;  /* number of bytes */
 	char *p = luamem_checkmemory(L, 1, &len);
 	size_t i = posrelatI(luaL_checkinteger(L, 2), len);
-	luaL_argcheck(L, 1 <= i && i <= (lua_Integer)len, 2, "index out of bounds");
+	luaL_argcheck(L, 1 <= i && i <= len, 2, "index out of bounds");
 	len = 1+len-i;
 	code2char(L, 3, p+i-1, n < len ? n : len);
 	return 0;
@@ -151,12 +151,12 @@ static int mem_find (lua_State *L) {
 	size_t j = getendpos(L, 4, -1, len);
 	size_t os = posrelatI(luaL_optinteger(L, 5, 1), sl);
 	if (i <= j && os <= sl) {
-		int n = (int)(j-i+1);
+		size_t n = j-i+1;
 		if (i+n <= j)  /* arithmetic overflow? */
 			return luaL_error(L, "string slice too long");
 		os--;
 		sl -= os;
-		s = lmemfind(p+i-1, (size_t)n, s+os, sl < n ? sl : n);
+		s = lmemfind(p+i-1, n, s+os, sl < n ? sl : n);
 		if (s) {
 			lua_pushinteger(L, (s-p)+1);
 			lua_pushinteger(L, (s-p)+sl);
@@ -319,7 +319,7 @@ static int str2byte (lua_State *L, const char *s, size_t l) {
 }
 
 static void code2char (lua_State *L, int idx, char *p, size_t n) {
-	int i;
+	size_t i;
 	for (i=0; i<n; ++i, ++idx) {
 		lua_Integer c = luaL_checkinteger(L, idx);
 		luaL_argcheck(L, uchar(c) == c, idx, "value out of range");
@@ -702,8 +702,7 @@ static int mem_pack (lua_State *L) {
 			case Kpadding: {
 				if (!getbytes(&mem, &i, lb, 1))
 					return packfailed(L, i, arg);
-				/* go through */
-			}
+			} /* FALLTHROUGH */
 			case Kpaddalign: case Knop:
 				arg--;  /* undo increment */
 				break;

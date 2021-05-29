@@ -117,6 +117,13 @@ LUAMEMLIB_API const char *luamem_tostring (lua_State *L, int idx, size_t *len) {
 	return s;
 }
 
+LUAMEMLIB_API const char *luamem_asstring (lua_State *L, int idx, size_t *len) {
+	int type;
+	const char *s = luamem_tomemoryx(L, idx, len, NULL, &type);
+	if (type == LUAMEM_TNONE) return luaL_tolstring(L, idx, len);
+	return s;
+}
+
 LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
                                               int arg,
                                               size_t *len) {
