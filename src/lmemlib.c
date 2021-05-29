@@ -20,11 +20,11 @@ typedef struct luamem_Ref {
 	luamem_Unref unref;
 } luamem_Ref;
 
-#define unref(L,r)	if (r->unref) ref->unref(L, r->mem, r->len)
+#define unrefmem(L,r)	if (r->unref) ref->unref(L, r->mem, r->len)
 
 static int luaunref (lua_State *L) {
 	luamem_Ref *ref = (luamem_Ref *)luaL_testudata(L, 1, LUAMEM_REF);
-	if (ref) unref(L, ref);
+	if (ref) unrefmem(L, ref);
 	return 0;
 }
 
@@ -45,7 +45,7 @@ LUAMEMLIB_API int luamem_setref (lua_State *L, int idx,
 	luamem_Ref *ref = (luamem_Ref *)luaL_testudata(L, idx, LUAMEM_REF);
 	if (ref) {
 		if (mem != ref->mem) {
-			unref(L, ref);
+			unrefmem(L, ref);
 			ref->mem = mem;
 		}
 		ref->len = len;
