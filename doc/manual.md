@@ -239,36 +239,36 @@ char *luamem_checkmemory (lua_State *L, int arg, size_t *len);
 Checks whether the function argument `arg` is a memory (allocated or referenced) and returns a pointer to its contents;
 if `len` is not `NULL` fills `*len` with the memory's length.
 
-### `luamem_ischararray`
+### `luamem_isarray`
 
 ```C
-int luamem_ischararray (lua_State *L, int idx);
+int luamem_isarray (lua_State *L, int idx);
 ```
 
 Returns 1 if the value at the given index is a memory or string, and 0 otherwise.
 
-### `luamem_tochararray`
+### `luamem_toarray`
 
 ```C
-const char *luamem_tochararray (lua_State *L, int idx, size_t *len);
+const char *luamem_toarray (lua_State *L, int idx, size_t *len);
 ```
 
 If the value at the given index is a memory it behaves like [`luamem_tomemory`](#luamem_tomemory), but retuning a pointer to constant bytes.
 Otherwise, it is equivalent to [`lua_tolstring`](http://www.lua.org/manual/5.3/manual.html#lua_tolstring).
 
-### `luamem_aschararray`
+### `luamem_asarray`
 
 ```C
-const char *luamem_aschararray (lua_State *L, int idx, size_t *len);
+const char *luamem_asarray (lua_State *L, int idx, size_t *len);
 ```
 
 If the value at the given index is a memory it behaves like [`luamem_tomemory`](#luamem_tomemory), but retuning a pointer to constant bytes.
 Otherwise, it is equivalent to [`luaL_tolstring`](http://www.lua.org/manual/5.3/manual.html#luaL_tolstring).
 
-### `luamem_checkchararray`
+### `luamem_checkarray`
 
 ```C
-const char *luamem_checkchararray (lua_State *L, int arg, size_t *len);
+const char *luamem_checkarray (lua_State *L, int arg, size_t *len);
 ```
 
 Checks whether the function argument `arg` is a memory or string and returns a pointer to its contents;
@@ -334,13 +334,13 @@ Index
 ---|---|---
 [`memory.create`](#memorycreate-m--i--j)     | | [`LUAMEM_ALLOC`](#luamem_newalloc)                | [`luamem_checkmemory`](#luamem_checkmemory) 
 [`memory.diff`](#memorydiff-m1-m2)           | | [`LUAMEM_REF`](#luamem_newref)                    | [`luamem_free`](#luamem_free)               
-[`memory.fill`](#memoryfill-m-s--i--j--o)    | | [`LUAMEM_TALLOC`](#luamem_tomemoryx)              | [`luamem_ischararray`](#luamem_ischararray) 
+[`memory.fill`](#memoryfill-m-s--i--j--o)    | | [`LUAMEM_TALLOC`](#luamem_tomemoryx)              | [`luamem_isarray`](#luamem_isarray) 
 [`memory.find`](#memoryfind-m-s--i--j--o)    | | [`LUAMEM_TNONE`](#luamem_tomemoryx)               | [`luamem_ismemory`](#luamem_ismemory)       
 [`memory.get`](#memoryget-m--i--j)           | | [`LUAMEM_TREF`](#luamem_tomemoryx)                | [`luamem_newalloc`](#luamem_newalloc)       
 [`memory.len`](#memorylen-m)                 |                                                     | [`luamem_newref`](#luamem_newref)           
 [`memory.pack`](#memorypack-m-fmt-i-v)       | | [`luamem_Unref`](#luamem_unref)                   | [`luamem_realloc`](#luamem_realloc)         
 [`memory.resize`](#memoryresize-m-l--s)      |                                                     | [`luamem_setref`](#luamem_setref)           
-[`memory.set`](#memoryset-m-i-)              | | [`luamem_addvalue`](#luamem_addvalue)             | [`luamem_tochararray`](#luamem_tochararray) 
-[`memory.tostring`](#memorytostring-m--i--j) | | [`luamem_aschararray`](#luamem_aschararray)       | [`luamem_tomemory`](#luamem_tomemory)       
-[`memory.type`](#memorytype-m)               | | [`luamem_checkchararray`](#luamem_checkchararray) | [`luamem_tomemoryx`](#luamem_tomemoryx)     
+[`memory.set`](#memoryset-m-i-)              | | [`luamem_addvalue`](#luamem_addvalue)             | [`luamem_toarray`](#luamem_toarray) 
+[`memory.tostring`](#memorytostring-m--i--j) | | [`luamem_asarray`](#luamem_asarray)       | [`luamem_tomemory`](#luamem_tomemory)       
+[`memory.type`](#memorytype-m)               | | [`luamem_checkarray`](#luamem_checkarray) | [`luamem_tomemoryx`](#luamem_tomemoryx)     
 [`memory.unpack`](#memoryunpack-m-fmt--i)    | | [`luamem_checklenarg`](#luamem_checklenarg)       | [`luamem_type`](#luamem_type)               
