@@ -5,10 +5,10 @@ luamem_setref
 luamem_type
 luamem_tomemoryx
 luamem_checkmemory
-luamem_isstring
-luamem_tostring
-luamem_checkstring
-luamem_optstring
+luamem_ischararray
+luamem_tochararray
+luamem_checkchararray
+luamem_optchararray
 luamem_realloc
 luamem_free
 luamem_checklenarg
