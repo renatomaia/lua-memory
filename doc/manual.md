@@ -91,7 +91,7 @@ It also returns the result of `m1 < m2` as if they were strings.
 
 Returns a string with the contents of memory or string `m` from `i` until `j`.
 
-### `memory.get (m [, i [, j]])`
+### `memory.get (m, i [, j])`
 
 Returns the values of bytes in memory `m` from `i` until `j`.
 The default value for `j` is `i`.
@@ -351,7 +351,7 @@ Index
 [`memory.diff`](#memorydiff-m1-m2)           | [`LUAMEM_REF`](#luamem_newref)              | [`luamem_free`](#luamem_free)               
 [`memory.fill`](#memoryfill-m-s--i--j--o)    | [`LUAMEM_TALLOC`](#luamem_tomemoryx)        | [`luamem_isarray`](#luamem_isarray)         
 [`memory.find`](#memoryfind-m-s--i--j--o)    | [`LUAMEM_TNONE`](#luamem_tomemoryx)         | [`luamem_ismemory`](#luamem_ismemory)       
-[`memory.get`](#memoryget-m--i--j)           | [`LUAMEM_TREF`](#luamem_tomemoryx)          | [`luamem_newalloc`](#luamem_newalloc)       
+[`memory.get`](#memoryget-m-i--j)            | [`LUAMEM_TREF`](#luamem_tomemoryx)          | [`luamem_newalloc`](#luamem_newalloc)       
 [`memory.len`](#memorylen-m)                 |                                             | [`luamem_newref`](#luamem_newref)           
 [`memory.pack`](#memorypack-m-fmt-i-v)       | [`luamem_Unref`](#luamem_unref)             | [`luamem_realloc`](#luamem_realloc)         
 [`memory.resize`](#memoryresize-m-l--s)      |                                             | [`luamem_setref`](#luamem_setref)           
