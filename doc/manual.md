@@ -226,7 +226,7 @@ Return the block address of memory at the given index, or `NULL` if the value is
 
 If `len` is not `NULL`, it sets `*len` with the memory size.
 If `unref` is not `NULL`, it sets `*unref` with the unrefering function if the value is a referenced memory, or `NULL` otherwise.
-If `type` is not `NULL`, it sets `*type` with `LUAMEM_TREF` if the value is referenced memory, or `LUAMEM_TALLOC` in case of an allocated memory, or `LUAMEM_TNONE` otherwise.
+If `type` is not `NULL`, it sets `*type` with the result of [`luamem_type`](#luamem_type)`(L, idx)`.
 
 Because Lua has garbage collection, there is no guarantee that the pointer returned by `luamem_tomemory` will be valid after the corresponding Lua value is removed from the stack.
 
@@ -274,7 +274,7 @@ const char *luamem_checkarray (lua_State *L, int arg, size_t *len);
 Checks whether the function argument `arg` is a memory or string and returns a pointer to its contents;
 if `len` is not `NULL` fills `*len` with the contents' length.
 
-This function might use `lua_tolstring` to get its result, so all conversions and caveats of that function apply here.
+This function might use [`lua_tolstring`](http://www.lua.org/manual/5.3/manual.html#lua_tolstring) to get its result, so all conversions and caveats of that function apply here.
 
 ### `luamem_checklenarg`
 
