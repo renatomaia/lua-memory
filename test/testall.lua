@@ -15,6 +15,13 @@ local function assertret(expected, ...)
 	for i, v in ipairs(expected) do
 		assert(v == select(i, ...), string.format("%s ~= %s", tostring(v), tostring(select(i,...))))
 	end
+	assert(#expected == select("#", ...))
+end
+
+local function assertunpack(expected, ...)
+	for i, v in ipairs(expected) do
+		assert(v == select(i, ...), string.format("%s ~= %s", tostring(v), tostring(select(i,...))))
+	end
 	assert(#expected+1 == select("#", ...))
 	return select(#expected+1, ...)
 end
@@ -47,7 +54,7 @@ local function testpack(case, ...)
 			local sequence = {nil}
 			for format in string.gmatch(case, "%s%S+") do
 				sequence[1] = select(i, ...)
-				pos = assertret(sequence, memory.unpack(mem, options..format, pos))
+				pos = assertunpack(sequence, memory.unpack(mem, options..format, pos))
 				i = i+1
 			end
 
@@ -58,7 +65,7 @@ local function testpack(case, ...)
 				assert(ok == true)
 				assert(pos == index+size)
 				assert(tostring(mem) == expected)
-				pos = assertret({...}, memory.unpack(mem, format, index))
+				pos = assertunpack({...}, memory.unpack(mem, format, index))
 				assert(pos == index+size)
 				format, replaces = string.gsub(format, " ", "")
 			end
@@ -128,11 +135,56 @@ end
 for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 	local memory = setmetatable({ create = newmem }, { __index = memory })
 
-	do print(kind, "memory:set(i, d)")
-		local b = memory.create(10)
+	do print(kind, "memory:get(i, j)")
+		local b = memory.create("\1\2\3\4\5\6\7\8\9\10")
+
+		asserterr("number expected", memory.get, b)
+		asserterr("number has no integer representation", memory.get, b, 1.256)
+
+		for i = 1, 10 do
+			assertret({i}, memory.get(b, i))
+			assertret({11-i}, memory.get(b, -i))
+		end
+
+		assertret({1,2,3,4,5,6,7,8,9,10}, memory.get(b, 1, -1))
+		assertret({2,3,4,5,6,7,8,9,10}, memory.get(b, 2, -1))
+		assertret({3,4,5,6,7,8}, memory.get(b, 3, -3))
+		assertret({3,4,5,6,7,8}, memory.get(b, 3, 8))
+		assertret({}, memory.get(b, 2, 1))
+		assertret({}, memory.get(b, 11, 20))
+		assertret({}, memory.get(b, -20, -11))
+		assertret({}, memory.get(b, 11, math.maxinteger))
+		assertret({}, memory.get(b, math.mininteger, 0))
+		assertret({1,2,3,4,5,6,7,8,9,10}, memory.get(b, math.mininteger, math.maxinteger))
+	end
+
+	do print(kind, "memory:set(i, ...)")
+		local b = memory.create("0123456789")
+
+		memory.set(b, 0)
+		assert(memory.tostring(b) == "0123456789")
+		memory.set(b, -11, 0,1,2)
+		assert(memory.tostring(b) == "\000\001\0023456789")
+		memory.set(b, math.mininteger, string.byte("012", 1, 3))
+		assert(memory.tostring(b) == "0123456789")
+
 		asserterr("value out of range", memory.set, b, 1, 256)
 		asserterr("value out of range", memory.set, b, 1, 511)
 		asserterr("value out of range", memory.set, b, 1, -1)
+		asserterr("value out of range", memory.set, b, 1, math.maxinteger)
+		asserterr("value out of range", memory.set, b, 1, math.mininteger)
+
+		asserterr("index out of bounds", memory.set, b, 11, 255)
+		asserterr("index out of bounds", memory.set, b, math.maxinteger, 255)
+
+		memory.set(b, 3, 0,255,0)
+		assert(memory.tostring(b) == "01\000\255\00056789")
+		memory.set(b, 7, 0,0xe4,0)
+		assert(memory.tostring(b) == "01\000\255\0005\000\xe4\0009")
+		memory.set(b, 0, string.byte("\xe4l\0uó", 1, -1))
+		assert(memory.tostring(b) == "\xe4l\0uó\000\xe4\0009")
+		memory.set(b, 7, string.byte("\xe4l\0uó", 1, -1))
+		assert(memory.tostring(b) == "\xe4l\0uó\xe4l\0u")
 	end
 
 	do print(kind, "memory.create(string), memory.diff, memory.len, #memory")
@@ -508,11 +560,11 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		testpack(" b bXd b", 1, 2, 3)
 
 		local mem = memory.create("0123456701234567")
-		assert(assertret({}, memory.unpack(mem, "!8 xXi8")) == 9)
-		assert(assertret({}, memory.unpack(mem, "!8 xXi2")) == 3)
-		assert(assertret({}, memory.unpack(mem, "!2 xXi2")) == 3)
-		assert(assertret({}, memory.unpack(mem, "!2 xXi8")) == 3)
-		assert(assertret({}, memory.unpack(mem, "!16 xXi16")) == 17)
+		assert(assertunpack({}, memory.unpack(mem, "!8 xXi8")) == 9)
+		assert(assertunpack({}, memory.unpack(mem, "!8 xXi2")) == 3)
+		assert(assertunpack({}, memory.unpack(mem, "!2 xXi2")) == 3)
+		assert(assertunpack({}, memory.unpack(mem, "!2 xXi8")) == 3)
+		assert(assertunpack({}, memory.unpack(mem, "!16 xXi16")) == 17)
 
 		asserterr("invalid next option", memory.pack, mem, "X", 1)
 		asserterr("invalid next option", memory.pack, mem, "Xc1", 1)
