@@ -328,7 +328,7 @@ static size_t getendpos (lua_State *L, int arg, lua_Integer def,
 }
 
 static int str2byte (lua_State *L, const char *s, size_t l) {
-	lua_Integer pi = luaL_optinteger(L, 2, 1);
+	lua_Integer pi = luaL_checkinteger(L, 2);
 	size_t posi = posrelatI(pi, l);
 	size_t pose = getendpos(L, 3, pi, l);
 	int n, i;
