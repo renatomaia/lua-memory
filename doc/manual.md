@@ -76,7 +76,7 @@ It also returns the result of `m1 < m2` as if they were strings.
 
 Returns a string with the contents of memory or string `m` from `i` until `j`.
 
-### `memory.get (m [, i [, j]])`
+### `memory.get (m, i [, j])`
 
 Returns the values of bytes in memory `m` from `i` until `j`.
 The default value for `j` is `i`.
