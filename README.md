@@ -30,7 +30,7 @@ History
 
 ### Version 2.0
 - Updated to Lua 5.4.
-- [Referenced](#luamem_newref) (and [resizable](#memorycreate-m--i--j)) memories are [closeable](http://www.lua.org/manual/5.4/manual.html#3.3.8).
+- [Referenced](doc/manual.md#luamem_newref) (and [resizable](doc/manual.md#memorycreate-m--i--j)) memories are [closeable](http://www.lua.org/manual/5.4/manual.html#3.3.8).
 - Memories now support [concat](http://www.lua.org/manual/5.4/manual.html#2.4) operator (`..`) to produce strings.
 - `memory.get` now requires the indice argument `i`.
 - C library and header are renamed to `*luamem.*`.
