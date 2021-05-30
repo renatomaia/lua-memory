@@ -168,7 +168,7 @@ These functions are called whenever a referenced memory ceases to pointo to bloc
 void luamem_newref (lua_State *L);
 ```
 
-Creates and pushes onto the stack a new reference memory pointing to NULL, with length zero, and no unrefering function (see [`luamem_Unref`](#luamem_Unref)).
+Creates and pushes onto the stack a new referenced memory pointing to NULL, with length zero, and no unrefering function (see [`luamem_Unref`](#luamem_Unref)).
 
 Referenced memory areas uses metatable created with name given by constant `LUAMEM_REF` (see [`luaL_newmetatable`](http://www.lua.org/manual/5.3/manual.html#luaL_newmetatable)).
 
