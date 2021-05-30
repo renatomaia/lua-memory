@@ -13,7 +13,7 @@ INSTALL_LIBDIR= $(INSTALL_DIR)\lib
 INSTALL_CMODDIR= $(INSTALL_DIR)\lib\lua\5.4
 
 MOD_L= memory
-LIB_L= lmemlib
+LIB_L= luamem
 
 CFLAGS= /Isrc /I$(LUA_INCDIR) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= /LIBPATH:$(LUA_LIBDIR) $(SYSLDFLAGS) $(MYLDFLAGS)
@@ -35,8 +35,8 @@ MYLIBS=
 
 # == END OF USER SETTINGS -- NO NEED TO CHANGE ANYTHING BELOW THIS LINE =======
 
-MOD_O= lmemmod.obj
-LIB_O= lmemlib.obj
+MOD_O= lmemlib.obj
+LIB_O= luamem.obj
 MOD_T= $(MOD_L).dll
 LIB_T= $(LIB_L).dll
 LIB_A= $(LIB_T) $(LIB_L).dll.manifest $(LIB_L).exp $(LIB_L).lib
@@ -86,7 +86,7 @@ $(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(INSTALL_CMODDIR):
 install: install_lib install_mod
 
 install_lib: $(INSTALL_BINDIR) $(INSTALL_INCDIR) $(INSTALL_LIBDIR) $(LIB_T)
-	$(COPY) src\lmemlib.h $(INSTALL_INCDIR)
+	$(COPY) src\luamem.h $(INSTALL_INCDIR)
 	$(COPY) $(LIB_L).lib $(INSTALL_LIBDIR)
 	$(COPY) $(LIB_T) $(INSTALL_BINDIR)
 
