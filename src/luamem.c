@@ -111,27 +111,27 @@ LUAMEMLIB_API char *luamem_checkmemory (lua_State *L, int arg, size_t *len) {
 }
 
 
-LUAMEMLIB_API int luamem_isstring (lua_State *L, int idx) {
+LUAMEMLIB_API int luamem_isarray (lua_State *L, int idx) {
 	return (lua_isstring(L, idx) || luamem_ismemory(L, idx));
 }
 
-LUAMEMLIB_API const char *luamem_tostring (lua_State *L, int idx, size_t *len) {
+LUAMEMLIB_API const char *luamem_toarray (lua_State *L, int idx, size_t *len) {
 	int type;
 	const char *s = luamem_tomemoryx(L, idx, len, NULL, &type);
 	if (type == LUAMEM_TNONE) return lua_tolstring(L, idx, len);
 	return s;
 }
 
-LUAMEMLIB_API const char *luamem_asstring (lua_State *L, int idx, size_t *len) {
+LUAMEMLIB_API const char *luamem_asarray (lua_State *L, int idx, size_t *len) {
 	int type;
 	const char *s = luamem_tomemoryx(L, idx, len, NULL, &type);
 	if (type == LUAMEM_TNONE) return luaL_tolstring(L, idx, len);
 	return s;
 }
 
-LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
-                                              int arg,
-                                              size_t *len) {
+LUAMEMLIB_API const char *luamem_checkarray (lua_State *L,
+                                             int arg,
+                                             size_t *len) {
 	int type;
 	const char *s = luamem_tomemoryx(L, arg, len, NULL, &type);
 	if (type == LUAMEM_TNONE) {
@@ -141,16 +141,16 @@ LUAMEMLIB_API const char *luamem_checkstring (lua_State *L,
 	return s;
 }
 
-LUAMEMLIB_API const char *luamem_optstring (lua_State *L,
-                                            int arg,
-                                            const char *def,
-                                            size_t *len) {
+LUAMEMLIB_API const char *luamem_optarray (lua_State *L,
+                                           int arg,
+                                           const char *def,
+                                           size_t *len) {
 	if (lua_isnoneornil(L, arg)) {
 		if (len)
 			*len = (def ? strlen(def) : 0);
 		return def;
 	}
-	else return luamem_checkstring(L, arg, len);
+	else return luamem_checkarray(L, arg, len);
 }
 
 
@@ -314,7 +314,7 @@ static char *prepbuffsize (luaL_Buffer *B, size_t sz, int boxidx) {
 LUAMEMLIB_API void luamem_addvalue (luaL_Buffer *B) {
 	lua_State *L = B->L;
 	size_t len;
-	const char *s = luamem_tostring(L, -1, &len);
+	const char *s = luamem_toarray(L, -1, &len);
 	char *b = prepbuffsize(B, len, -2);
 	memcpy(b, s, len * sizeof(char));
 	luaL_addsize(B, len);

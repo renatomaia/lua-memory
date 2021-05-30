@@ -43,11 +43,11 @@ LUAMEMLIB_API char *(luamem_tomemoryx) (lua_State *L, int idx,
 LUAMEMLIB_API char *(luamem_checkmemory) (lua_State *L, int idx, size_t *len);
 
 
-LUAMEMLIB_API int (luamem_isstring) (lua_State *L, int idx);
-LUAMEMLIB_API const char *(luamem_tostring) (lua_State *L, int idx, size_t *len);
-LUAMEMLIB_API const char *(luamem_asstring) (lua_State *L, int idx, size_t *len);
-LUAMEMLIB_API const char *(luamem_checkstring) (lua_State *L, int idx, size_t *len);
-LUAMEMLIB_API const char *(luamem_optstring) (lua_State *L, int arg, const char *def, size_t *len);
+LUAMEMLIB_API int (luamem_isarray) (lua_State *L, int idx);
+LUAMEMLIB_API const char *(luamem_toarray) (lua_State *L, int idx, size_t *len);
+LUAMEMLIB_API const char *(luamem_asarray) (lua_State *L, int idx, size_t *len);
+LUAMEMLIB_API const char *(luamem_checkarray) (lua_State *L, int idx, size_t *len);
+LUAMEMLIB_API const char *(luamem_optarray) (lua_State *L, int arg, const char *def, size_t *len);
 
 
 LUAMEMLIB_API void *(luamem_realloc) (lua_State *L, void *mem, size_t osize,
