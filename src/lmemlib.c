@@ -22,21 +22,29 @@ typedef struct luamem_Ref {
 
 #define unrefmem(L,r)	if (r->unref) ref->unref(L, r->mem, r->len)
 
-static int luaunref (lua_State *L) {
-	luamem_Ref *ref = (luamem_Ref *)luaL_testudata(L, 1, LUAMEM_REF);
-	if (ref) unrefmem(L, ref);
+static int refgc (lua_State *L) {
+	luamem_Ref *ref = (luamem_Ref *)lua_touserdata(L, 1);
+	if (ref && ref->len) {
+		unrefmem(L, ref);
+		ref->mem = NULL;
+		ref->len = 0;
+		ref->unref = NULL;
+	}
 	return 0;
 }
+
+static const luaL_Reg refmt[] = {  /* metamethods */
+	{"__gc", refgc},
+	{"__close", refgc},
+	{NULL, NULL}
+};
 
 LUAMEMLIB_API void luamem_newref (lua_State *L) {
 	luamem_Ref *ref = (luamem_Ref *)lua_newuserdatauv(L, sizeof(luamem_Ref), 0);
 	ref->mem = NULL;
 	ref->len = 0;
 	ref->unref = NULL;
-	if (luaL_newmetatable(L, LUAMEM_REF)) {
-		lua_pushcfunction(L, luaunref);
-		lua_setfield(L, -2, "__gc");
-	}
+	if (luaL_newmetatable(L, LUAMEM_REF)) luaL_setfuncs(L, refmt, 0);
 	lua_setmetatable(L, -2);
 }
 
