@@ -18,15 +18,15 @@ dependencies = {
 }
 external_dependencies = {
 	LUAMEM = {
-		header = "lmemlib.h",
-		library = "lmemlib",
+		header = "luamem.h",
+		library = "luamem",
 	},
 }
 build = {
 	type = "builtin",
 	modules = {
 		memory = {
-			sources = "src/lmemmod.c",
+			sources = "src/lmemlib.c",
 			libdirs = "$(LUAMEM_LIBDIR)",
 			incdirs = "$(LUAMEM_INCDIR)",
 			libraries = external_dependencies.LUAMEM.library,
