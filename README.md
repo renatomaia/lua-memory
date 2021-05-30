@@ -23,9 +23,20 @@ Documentation
   - [(Un)packing Data](demo/packing.lua)
 - C API Use
   - [Module `memory` Source](src/lmemlib.c)
-  - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/commit/fdca74d8222b9c427ed70f232c8249f9b0999ba0)
+  - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/commit/ceddb5af05061937034d8e80f4a867d7c8126831)
 
 History
 -------
 
-- **Version 1.0**: First release.
+### Version 2.0
+- Updated to Lua 5.4.
+- [Referenced](doc/manual.md#luamem_newref) (and [resizable](doc/manual.md#memorycreate-m--i--j)) memories are [closeable](http://www.lua.org/manual/5.4/manual.html#3.3.8).
+- Memories now support [concat](http://www.lua.org/manual/5.4/manual.html#2.4) operator (`..`) to produce strings.
+- `memory.get` now requires the indice argument `i`.
+- C library and header are renamed to `*luamem.*`.
+- Functions `luamem_pushresult` and `luamem_pushresultsize` are removed.
+- Functions `luamem_*string` are renamed to `luamem_*array` to explicit that their result are not null-terminated.
+
+### Version 1.0
+- Lua module
+- C Library
