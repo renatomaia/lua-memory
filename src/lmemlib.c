@@ -16,7 +16,7 @@ static const char *lmemfind (const char *s1, size_t l1,
 static int mem_create (lua_State *L) {
 	if (lua_gettop(L) == 0) {
 		luamem_newref(L);
-		luamem_setref(L, 1, NULL, 0, luamem_free);
+		luamem_resetref(L, 1, NULL, 0, luamem_free, 0);
 	} else {
 		char *p;
 		size_t len;
@@ -64,8 +64,7 @@ static int mem_resize (lua_State *L) {
 		const char *s = luamem_optarray(L, 3, NULL, &sl);
 		char *resized = (char *)luamem_realloc(L, mem, len, size);
 		if (size && !resized) return luaL_error(L, "out of memory");
-		luamem_setref(L, 1, mem, len, NULL);  /* don't free `mem` again */
-		luamem_setref(L, 1, resized, size, luamem_free);
+		luamem_resetref(L, 1, resized, size, luamem_free, 0 /* don't free 'mem' */);
 		if (n) {
 			resized += len;
 			if (sl) memfill(resized, n, s, sl);
