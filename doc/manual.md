@@ -175,7 +175,7 @@ typedef void (*luamem_Unref) (lua_State *L, void *mem, size_t len);
 
 Type for memory unrefering functions.
 
-These functions are called whenever a referenced memory ceases to pointo to block address `mem` which have size of `len` bytes. (see [`luamem_setref`](#luamem_setref)).
+These functions are called whenever a referenced memory ceases to pointo to block address `mem` which have size of `len` bytes. (see [`luamem_resetref`](#luamem_resetref)).
 
 ### `luamem_newref`
 
@@ -183,9 +183,13 @@ These functions are called whenever a referenced memory ceases to pointo to bloc
 void luamem_newref (lua_State *L);
 ```
 
-Creates and pushes onto the stack a new referenced memory pointing to NULL, with length zero, and no unrefering function (see [`luamem_Unref`](#luamem_Unref)).
+Creates and pushes onto the stack a new referenced memory pointing to NULL, with length zero, and no unrefering function (see [`luamem_resetref`](#luamem_resetref)).
 
-Referenced memory areas uses metatable created with name given by constant `LUAMEM_REF` (see [`luaL_newmetatable`](http://www.lua.org/manual/5.3/manual.html#luaL_newmetatable)).
+Referenced memory areas uses a metatable created with name given by constant `LUAMEM_REF` (see [`luaL_newmetatable`](http://www.lua.org/manual/5.3/manual.html#luaL_newmetatable)).
+
+Moreover,
+a referenced memory is [closeable](http://www.lua.org/manual/5.4/manual.html#lua_closeslot).
+Closing a memory at index `idx` is equivalent to `luamem_setref(L, idx, NULL, 0, NULL)`.
 
 ### `luamem_setref`
 
