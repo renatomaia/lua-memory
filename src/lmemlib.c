@@ -30,11 +30,10 @@ static int mem_create (lua_State *L) {
 			pose = getendpos(L, 3, -1, len);
 			if (posi > pose) {
 				len = 0;
-				s = NULL;
 			} else {
-				if (pose-posi >= (size_t)INT_MAX)  /* arithmetic overflow? */
-					return luaL_error(L, "string slice too long");
 				len = (pose-posi)+1;
+				if (posi+len <= pose)  /* arithmetic overflow? */
+					return luaL_error(L, "string slice too long");
 				s += posi-1;
 			}
 		}
