@@ -261,7 +261,7 @@ LUAMEMMOD_API int luaopen_memory (lua_State *L) {
 }
 
 /*
-* NOTE: most of the code below is copied from the source of Lua 5.4.0 by
+* NOTE: most of the code below is copied from the source of Lua 5.4.3 by
 *       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
 *
 * Copyright (C) 1994-2020 Lua.org, PUC-Rio.
@@ -317,14 +317,14 @@ static size_t posrelatI (lua_Integer pos, size_t len) {
 */
 static size_t getendpos (lua_State *L, int arg, lua_Integer def,
                          size_t len) {
-  lua_Integer pos = luaL_optinteger(L, arg, def);
-  if (pos > (lua_Integer)len)
-    return len;
-  else if (pos >= 0)
-    return (size_t)pos;
-  else if (pos < -(lua_Integer)len)
-    return 0;
-  else return len + (size_t)pos + 1;
+	lua_Integer pos = luaL_optinteger(L, arg, def);
+	if (pos > (lua_Integer)len)
+		return len;
+	else if (pos >= 0)
+		return (size_t)pos;
+	else if (pos < -(lua_Integer)len)
+		return 0;
+	else return len + (size_t)pos + 1;
 }
 
 static int str2byte (lua_State *L, const char *s, size_t l) {
@@ -333,7 +333,7 @@ static int str2byte (lua_State *L, const char *s, size_t l) {
 	size_t pose = getendpos(L, 3, pi, l);
 	int n, i;
 	if (posi > pose) return 0;  /* empty interval; return no values */
-	if (pose - posi >= (size_t)INT_MAX)  /* arithmetic overflow? */
+	if (l_unlikely(pose - posi >= (size_t)INT_MAX))  /* arithmetic overflow? */
 		return luaL_error(L, "string slice too long");
 	n = (int)(pose -  posi) + 1;
 	luaL_checkstack(L, n, "string slice too long");
@@ -344,19 +344,17 @@ static int str2byte (lua_State *L, const char *s, size_t l) {
 
 static void code2char (lua_State *L, int idx, char *p, size_t n) {
 	size_t i;
-	for (i=0; i<n; ++i, ++idx) {
-		lua_Integer c = luaL_checkinteger(L, idx);
-		luaL_argcheck(L, uchar(c) == c, idx, "value out of range");
+	for (i=0; i<n; i++, idx++) {
+		lua_Unsigned c = (lua_Unsigned)luaL_checkinteger(L, idx);
+		luaL_argcheck(L, c <= (lua_Unsigned)UCHAR_MAX, idx, "value out of range");
 		p[i] = uchar(c);
 	}
 }
 
 static const char *lmemfind (const char *s1, size_t l1,
                              const char *s2, size_t l2) {
-#ifdef luai_apicheck
-	luai_apicheck(l2 <= l1);
-#endif
 	if (l2 == 0) return s1;  /* empty strings are everywhere */
+	else if (l2 > l1) return NULL;  /* avoids a negative 'l1' */
 	else {
 		const char *init;  /* to search for a '*s2' inside 's1' */
 		l2--;  /* 1st char will be checked by 'memchr' */

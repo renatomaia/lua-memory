@@ -173,7 +173,7 @@ LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx) {
 }
 
 /*
-* NOTE: most of the code below is copied from the source of Lua 5.4.0 by
+* NOTE: most of the code below is copied from the source of Lua 5.4.3 by
 *       R. Ierusalimschy, L. H. de Figueiredo, W. Celes - Lua.org, PUC-Rio.
 *
 * Copyright (C) 1994-2020 Lua.org, PUC-Rio.
@@ -203,11 +203,6 @@ LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx) {
 ** Generic Buffer manipulation
 ** =======================================================
 */
-
-#if !defined(MAX_SIZET)
-/* maximum value for size_t */
-#define MAX_SIZET	((size_t)(~(size_t)0))
-#endif
 
 
 /* userdata to box arbitrary data */

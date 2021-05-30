@@ -56,12 +56,17 @@ LUAMEMLIB_API void (luamem_free) (lua_State *L, void *memo, size_t size);
 LUAMEMLIB_API size_t (luamem_checklenarg) (lua_State *L, int idx);
 
 
+#if !defined(MAX_SIZET)
+/* maximum value for size_t */
+#define MAX_SIZET ((size_t)(~(size_t)0))
+#endif
+
 /*
 ** Some sizes are better limited to fit in 'int', but must also fit in
 ** 'size_t'. (We assume that 'lua_Integer' cannot be smaller than 'int'.)
 */
 #define LUAMEM_MAXSIZE  \
-	(sizeof(size_t) < sizeof(int) ? ((size_t)(~(size_t)0)) : (size_t)(INT_MAX))
+	(sizeof(size_t) < sizeof(int) ? MAX_SIZET : (size_t)(INT_MAX))
 
 
 /*
