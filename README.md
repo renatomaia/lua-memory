@@ -36,6 +36,7 @@ History
 - C library and header are renamed to `*luamem.*`.
 - Functions `luamem_pushresult` and `luamem_pushresultsize` are removed.
 - Functions `luamem_*string` are renamed to `luamem_*array` to explicit that their result are not null-terminated.
+- New function `luamem_resetref` to reset a referenced memory without releasing its current value.
 
 ### Version 1.0
 - Lua module
