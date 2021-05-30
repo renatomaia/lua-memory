@@ -28,12 +28,12 @@ MYLIBS=
 
 PLATS= guess generic linux macosx solaris
 
-MEM_O= lmemmod.o
-API_O= lmemlib.o
+MEM_O= lmemlib.o
+API_O= luamem.o
 
 MEM_M= memory.so
-API_S= liblmemlib.so
-LIB_A= liblmemory.a
+API_S= libluamem.so
+LIB_A= libluamemory.a
 
 ALL_O= $(MEM_O) $(API_O)
 ALL_A= $(LIB_A)

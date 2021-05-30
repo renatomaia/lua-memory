@@ -29,8 +29,8 @@ RM= rm -f
 PLATS= guess generic linux macosx solaris
 
 # What to install.
-TO_INC= lmemlib.h
-TO_LIB= liblmemlib.so liblmemory.a
+TO_INC= luamem.h
+TO_LIB= libluamem.so libluamemory.a
 TO_CMOD= memory.so
 
 # Lua version and release.
