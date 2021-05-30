@@ -32,9 +32,9 @@ Other metamethods provided for the memory are:
 
 - `__concat`: `v1..v2` produces a string with the concatenation of the contents of `v1` and `v2` if they are memory or string,
 or calls metamethod `__concat` of the other value if available.
-Otherwise raised an error.
-- `__len`: `#m` equivalent to [`memory.len(m)`](#memorylen-m).
-- `__tostring`: [`tostring`](http://www.lua.org/manual/5.4/manual.html#pdf-tostring)`(m)` equivalent to [`memory.tostring`](#memorytostring-m--i--j)`(m)`.
+Otherwise raises an error.
+- `__len`: `#m` is equivalent to [`memory.len`](#memorylen-m)`(m)`.
+- `__tostring`: [`tostring`](http://www.lua.org/manual/5.4/manual.html#pdf-tostring)`(m)` is equivalent to [`memory.tostring`](#memorytostring-m--i--j)`(m)`.
 
 Finally,
 a resizable memory can be assigned to [to-be-closed](http://www.lua.org/manual/5.4/manual.html#3.3.8) variables.
