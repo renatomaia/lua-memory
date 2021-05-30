@@ -360,7 +360,7 @@ Index
 [`memory.diff`](#memorydiff-m1-m2)           | [`LUAMEM_REF`](#luamem_newref)              | [`luamem_isarray`](#luamem_isarray)     
 [`memory.fill`](#memoryfill-m-s--i--j--o)    | [`LUAMEM_TALLOC`](#luamem_tomemoryx)        | [`luamem_ismemory`](#luamem_ismemory)   
 [`memory.find`](#memoryfind-m-s--i--j--o)    | [`LUAMEM_TNONE`](#luamem_tomemoryx)         | [`luamem_newalloc`](#luamem_newalloc)   
-[`memory.get`](#memoryget-m--i--j)           | [`LUAMEM_TREF`](#luamem_tomemoryx)          | [`luamem_newref`](#luamem_newref)       
+[`memory.get`](#memoryget-m-i--j)            | [`LUAMEM_TREF`](#luamem_tomemoryx)          | [`luamem_newref`](#luamem_newref)       
 [`memory.len`](#memorylen-m)                 |                                             | [`luamem_realloc`](#luamem_realloc)     
 [`memory.pack`](#memorypack-m-fmt-i-v)       | [`luamem_Unref`](#luamem_unref)             | [`luamem_resetref`](#luamem_resetref)   
 [`memory.resize`](#memoryresize-m-l--s)      | [`luamem_addvalue`](#luamem_addvalue)       | [`luamem_setref`](#luamem_setref)       
