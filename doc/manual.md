@@ -132,8 +132,8 @@ After the read values, this function also returns the index of the first unread 
 C Library
 =========
 
-This section describes the C API provided as a separate library to create and manipulate memory areas from C.
-All API functions and related types and constants are declared in the header file `lmemlib.h`.
+This section describes the C API provided as a separate library (`luamem`) to create and manipulate memory areas from C.
+All API functions and related types and constants are declared in the header file `luamem.h`.
 
 There are two distinct types of memory areas in the C API:
 

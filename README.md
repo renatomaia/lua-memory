@@ -22,7 +22,7 @@ Documentation
   - [Compare Contents](demo/compare.lua)
   - [(Un)packing Data](demo/packing.lua)
 - C API Use
-  - [Module `memory` Source](src/lmemmod.c)
+  - [Module `memory` Source](src/lmemlib.c)
   - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/commit/fdca74d8222b9c427ed70f232c8249f9b0999ba0)
 
 History
