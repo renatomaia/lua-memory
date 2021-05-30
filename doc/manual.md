@@ -28,6 +28,13 @@ This library provides all its functions inside the table `memory`.
 It also sets a metatable for the memory where the `__index` field points to the `memory` table.
 Therefore, you can use the library functions in object-oriented style.
 For instance, `memory.get(m,i)` can be written as `m:get(i)`, where `m` is a memory.
+Other metamethods provided for the memory are:
+
+- `__concat`: `v1..v2` produces a string with the concatenation of the contents of `v1` and `v2` if they are memory or string,
+or calls metamethod `__concat` of the other value if available.
+Otherwise raised an error.
+- `__len`: `#m` equivalent to [`memory.len(m)`](#memorylen-m).
+- `__tostring`: [`tostring`](http://www.lua.org/manual/5.4/manual.html#pdf-tostring)`(m)` equivalent to [`memory.tostring`](#memorytostring-m--i--j)`(m)`.
 
 ### `memory.create ([m [, i [, j]]])`
 

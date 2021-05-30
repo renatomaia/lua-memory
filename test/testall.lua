@@ -132,6 +132,29 @@ do print("memory.type(value)")
 	assert(memory.type(memory.create("Lua Memory 1.0", 5, -5)) == "fixed")
 end
 
+do print("memory..memory")
+	local b1 = memory.create("abc")
+	local b2 = memory.create("def")
+	assert(b1..b2 == "abcdef")
+	assert(b2..b1 == "defabc")
+	assert(b2.."abc" == "defabc")
+	assert("abc"..b2 == "abcdef")
+	assert(b1..(123) == "abc123")
+	assert((123)..b1 == "123abc")
+	asserterr("attempt to concat", function () return b1..{} end)
+	asserterr("attempt to concat", function () return {}..b2 end)
+	local mt = {}
+	function mt:__tostring()
+		return self[1]
+	end
+	function mt.__concat(v1, v2)
+		return tostring(v1)..tostring(v2)
+	end
+	local t = setmetatable({ "table" }, mt)
+	assert(b1..t == "abctable")
+	assert(t..b1 == "tableabc")
+end
+
 for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 	local memory = setmetatable({ create = newmem }, { __index = memory })
 
