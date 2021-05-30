@@ -125,6 +125,19 @@ do print("memory.type(value)")
 	assert(memory.type(memory.create("Lua Memory 1.0", 5, -5)) == "fixed")
 end
 
+do print("memory<close>")
+	local b = memory.create()
+	memory.resize(b, 10)
+	assert(memory.len(b) == 10)
+	do local closeable<close> = b end
+	assert(memory.type(b) == "other")
+	assert(memory.len(b) == 0)
+	assert(memory.tostring(b) == "")
+	assert(memory.get(b, 1) == nil)
+	asserterr("resizable memory expected", memory.resize, b, 10)
+	asserterr("index out of bounds", memory.set, b, 1, 255)
+end
+
 for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 	local memory = setmetatable({ create = newmem }, { __index = memory })
 

@@ -29,6 +29,14 @@ It also sets a metatable for the memory where the `__index` field points to the 
 Therefore, you can use the library functions in object-oriented style.
 For instance, `memory.get(m,i)` can be written as `m:get(i)`, where `m` is a memory.
 
+Finally,
+a resizable memory can be assigned to [to-be-closed](http://www.lua.org/manual/5.4/manual.html#3.3.8) variables.
+When closed,
+it  becomes an empty external memory
+([`memory.type`](#memorytype-m)`(m) == "other"`)
+with all its contents discarded,
+and it cannot be resized nor changed anymore.
+
 ### `memory.create ([m [, i [, j]]])`
 
 Returns a new memory.
