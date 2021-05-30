@@ -71,8 +71,6 @@ LUAMEMLIB_API size_t (luamem_checklenarg) (lua_State *L, int idx);
 */
 
 LUAMEMLIB_API void (luamem_addvalue) (luaL_Buffer *B);
-LUAMEMLIB_API void (luamem_pushresult) (luaL_Buffer *B);
-LUAMEMLIB_API void (luamem_pushresultsize) (luaL_Buffer *B, size_t sz);
 
 /* }====================================================== */
 
