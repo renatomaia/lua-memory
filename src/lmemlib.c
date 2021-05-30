@@ -25,7 +25,7 @@ static int mem_create (lua_State *L) {
 			len = luamem_checklenarg(L, 1);
 		} else {
 			size_t posi, pose;
-			s = luamem_checkstring(L, 1, &len);
+			s = luamem_checkarray(L, 1, &len);
 			posi = posrelatI(luaL_optinteger(L, 2, 1), len);
 			pose = getendpos(L, 3, -1, len);
 			if (posi > pose) {
@@ -62,7 +62,7 @@ static int mem_resize (lua_State *L) {
 	luaL_argcheck(L, unref == luamem_free, 1, "resizable memory expected");
 	if (len != size) {
 		size_t sl, n = len < size ? size-len : 0;
-		const char *s = luamem_optstring(L, 3, NULL, &sl);
+		const char *s = luamem_optarray(L, 3, NULL, &sl);
 		char *resized = (char *)luamem_realloc(L, mem, len, size);
 		if (size && !resized) return luaL_error(L, "out of memory");
 		luamem_setref(L, 1, mem, len, NULL);  /* don't free `mem` again */
@@ -100,7 +100,7 @@ static int mem_len (lua_State *L) {
 
 static int mem_tostring (lua_State *L) {
 	size_t len;
-	const char *s = luamem_checkstring(L, 1, &len);
+	const char *s = luamem_checkarray(L, 1, &len);
 	size_t start = posrelatI(luaL_optinteger(L, 2, 1), len);
 	size_t end = getendpos(L, 3, -1, len);
 	if (start <= end) lua_pushlstring(L, s+start-1, (end-start)+1);
@@ -110,8 +110,8 @@ static int mem_tostring (lua_State *L) {
 
 static int mem_diff (lua_State *L) {
 	size_t l1, l2;
-	const char *s1 = luamem_checkstring(L, 1, &l1);
-	const char *s2 = luamem_checkstring(L, 2, &l2);
+	const char *s1 = luamem_checkarray(L, 1, &l1);
+	const char *s2 = luamem_checkarray(L, 2, &l2);
 	size_t i, n=(l1<l2 ? l1 : l2);
 	for (i=0; (i<n) && (s1[i]==s2[i]); i++);
 	if (i<n) {
@@ -146,8 +146,8 @@ static int mem_set (lua_State *L) {
 
 static int mem_find (lua_State *L) {
 	size_t len, sl;
-	const char *p = luamem_checkstring(L, 1, &len);
-	const char *s = luamem_checkstring(L, 2, &sl);
+	const char *p = luamem_checkarray(L, 1, &len);
+	const char *s = luamem_checkarray(L, 2, &sl);
 	size_t i = posrelatI(luaL_optinteger(L, 3, 1), len);
 	size_t j = getendpos(L, 4, -1, len);
 	size_t os = posrelatI(luaL_optinteger(L, 5, 1), sl);
@@ -181,7 +181,7 @@ static int mem_fill (lua_State *L) {
 		os = 1;
 		code2char(L, 2, &c, 1);
 	} else {
-		s = luamem_checkstring(L, 2, &sl);
+		s = luamem_checkarray(L, 2, &sl);
 		os = posrelatI(luaL_optinteger(L, 5, 1), sl);
 	}
 	if (i <= j && os <= sl) {
@@ -193,8 +193,8 @@ static int mem_fill (lua_State *L) {
 
 static int mem_concat (lua_State *L) {
 	size_t l1, l2;
-	const char *s1 = luamem_tostring(L, 1, &l1);
-	const char *s2 = luamem_tostring(L, 2, &l2);
+	const char *s1 = luamem_toarray(L, 1, &l1);
+	const char *s2 = luamem_toarray(L, 2, &l2);
 	if (s1 && s2) {
 		luaL_Buffer B;
 		char *buff = luaL_buffinitsize(L, &B, l1+l2);
@@ -695,7 +695,7 @@ static int mem_pack (lua_State *L) {
 			}
 			case Kchar: {  /* fixed-size string */
 				size_t len;
-				const char *s = luamem_checkstring(L, arg, &len);
+				const char *s = luamem_checkarray(L, arg, &len);
 				luaL_argcheck(L, len == (size_t)size, arg, "wrong length");
 				if (!packstream(&mem, &i, lb, s, size))
 					return packfailed(L, i, arg);
@@ -703,7 +703,7 @@ static int mem_pack (lua_State *L) {
 			}
 			case Kstring: {  /* strings with length count */
 				size_t len;
-				const char *s = luamem_checkstring(L, arg, &len);
+				const char *s = luamem_checkarray(L, arg, &len);
 				luaL_argcheck(L, size >= (int)sizeof(size_t) ||
 				                 len < ((size_t)1 << (size * NB)),
 				                 arg, "string length does not fit in given size");
@@ -714,7 +714,7 @@ static int mem_pack (lua_State *L) {
 			}
 			case Kzstr: {  /* zero-terminated string */
 				size_t len;
-				const char *s = luamem_checkstring(L, arg, &len);
+				const char *s = luamem_checkarray(L, arg, &len);
 				luaL_argcheck(L, memchr(s, '\0', len) == NULL, arg,
 				                 "string contains zeros");
 				if (!packstream(&mem, &i, lb, s, len) || !packchar(&mem, &i, lb, '\0'))
