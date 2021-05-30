@@ -311,29 +311,6 @@ static char *prepbuffsize (luaL_Buffer *B, size_t sz, int boxidx) {
 }
 
 
-LUAMEMLIB_API void luamem_pushresult (luaL_Buffer *B) {
-	lua_State *L = B->L;
-	checkbufferlevel(B, -1);
-	if (buffonstack(B)) {
-		UBox *box = (UBox *)lua_touserdata(L, -1);
-		luamem_newref(L);
-		luamem_setref(L, -1, (char *)box->box, box->bsize, luamem_free);
-		box->box = NULL;
-		box->bsize = 0;
-	} else {
-		char *p = (char *)luamem_newalloc(L, B->n * sizeof(char));
-		memcpy(p, B->b, B->n * sizeof(char));
-	}
-	lua_remove(L, -2);  /* remove box or placeholder from the stack */
-}
-
-
-LUAMEMLIB_API void luamem_pushresultsize (luaL_Buffer *B, size_t sz) {
-	luaL_addsize(B, sz);
-	luamem_pushresult(B);
-}
-
-
 LUAMEMLIB_API void luamem_addvalue (luaL_Buffer *B) {
 	lua_State *L = B->L;
 	size_t len;
