@@ -48,12 +48,13 @@ LUAMEMLIB_API void luamem_newref (lua_State *L) {
 	lua_setmetatable(L, -2);
 }
 
-LUAMEMLIB_API int luamem_setref (lua_State *L, int idx, 
-                                 char *mem, size_t len, luamem_Unref unref) {
+LUAMEMLIB_API int luamem_resetref (lua_State *L, int idx, 
+                                   char *mem, size_t len, luamem_Unref unref,
+                                   int cleanup) {
 	luamem_Ref *ref = (luamem_Ref *)luaL_testudata(L, idx, LUAMEM_REF);
 	if (ref) {
 		if (mem != ref->mem) {
-			unrefmem(L, ref);
+			if (cleanup) unrefmem(L, ref);
 			ref->mem = mem;
 		}
 		ref->len = len;

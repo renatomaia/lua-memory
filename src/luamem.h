@@ -29,8 +29,11 @@ LUAMEMLIB_API char *(luamem_newalloc) (lua_State *L, size_t len);
 typedef void (*luamem_Unref) (lua_State *L, void *mem, size_t len);
 
 LUAMEMLIB_API void (luamem_newref) (lua_State *L);
-LUAMEMLIB_API int (luamem_setref) (lua_State *L, int idx,
-                                   char *mem, size_t len, luamem_Unref unref);
+LUAMEMLIB_API int (luamem_resetref) (lua_State *L, int idx,
+                                     char *mem, size_t len, luamem_Unref unref,
+                                     int cleanup);
+
+#define  luamem_setref(L,I,M,S,F) luamem_resetref(L,I,M,S,F,1)
 
 LUAMEMLIB_API int (luamem_type) (lua_State *L, int idx);
 
