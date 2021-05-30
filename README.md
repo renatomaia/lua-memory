@@ -6,7 +6,7 @@ These memory areas are much like Lua strings, but their contents can be modified
 The library provides the following components:
 
 - [Module](doc/manual.md#lua-module) to manipulate memory areas in Lua.
-- [C API](doc/manual.md#c-library) for manipulation memory areas in the same fashion of the [Lua C API](http://www.lua.org/manual/5.4/manual.html#4).
+- [C API](doc/manual.md#c-library) for manipulation memory areas in similar fashion to the [Lua C API](http://www.lua.org/manual/5.4/manual.html#4).
 
 Documentation
 -------------
@@ -23,7 +23,7 @@ Documentation
   - [(Un)packing Data](demo/packing.lua)
 - C API Use
   - [Module `memory` Source](src/lmemmod.c)
-  - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/pull/1/files)
+  - [Adapting Lua Standard Libraries](https://github.com/renatomaia/lua/commit/fdca74d8222b9c427ed70f232c8249f9b0999ba0)
 
 History
 -------
