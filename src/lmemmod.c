@@ -1,4 +1,5 @@
 #define lmemmod_c
+#define LUA_LIB
 
 #include "lmemlib.h"
 
@@ -190,6 +191,28 @@ static int mem_fill (lua_State *L) {
 	return 0;
 }
 
+static int mem_concat (lua_State *L) {
+	size_t l1, l2;
+	const char *s1 = luamem_tostring(L, 1, &l1);
+	const char *s2 = luamem_tostring(L, 2, &l2);
+	if (s1 && s2) {
+		luaL_Buffer B;
+		char *buff = luaL_buffinitsize(L, &B, l1+l2);
+		memcpy(buff, s1, l1*sizeof(char));
+		memcpy(buff+l1, s2, l2*sizeof(char));
+		luaL_addsize(&B, l1+l2);
+		luaL_pushresult(&B);
+	} else {
+		if (l_unlikely(luamem_ismemory(L, 2) ||
+			             !luaL_getmetafield(L, 2, "__concat")))
+			luaL_error(L, "attempt to concat a '%s' with a '%s'",
+			              luaL_typename(L, 1), luaL_typename(L, 2));
+		lua_insert(L, -3);  /* put metamethod before arguments */
+		lua_call(L, 2, 1);  /* call metamethod */
+	}
+	return 1;
+}
+
 static int mem_pack (lua_State *L);
 static int mem_unpack (lua_State *L);
 
@@ -211,6 +234,7 @@ static const luaL_Reg lib[] = {
 
 static const luaL_Reg meta[] = {
 	{"__len", mem_len},
+	{"__concat", mem_concat},
 	{"__tostring", mem_tostring},
 	{NULL, NULL}
 };
