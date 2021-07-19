@@ -155,7 +155,7 @@ There are two distinct types of memory areas in the C API:
 - __allocated__: points to a constant block address with fixed size, which is automatically released when the memory is garbage collected (see [`luamem_newalloc`](#luamem_newalloc)).
 - __referenced__: points to a memory area with block address and size provided by the application, which can provide a unrefering function to be used to free the memory area when it is not pointed by the Lua memory object anymore (see [`luamem_newref`](#luamem_newref)).
 
-__Warning__: Unlike Lua strings, memory areas are not followed by a null byte (`'\0'`).
+__Warning__: unlike Lua strings, memory areas are not followed by a null byte (`'\0'`).
 
 ### `luamem_newalloc`
 
