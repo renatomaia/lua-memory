@@ -206,7 +206,7 @@ int luamem_resetref (lua_State *L, int idx, char *mem, size_t len, luamem_Unref 
 ```
 
 Defines the block address (`mem`), size (`len`), and unrefering function (`unref`) of the referenced memory at index `idx`, and returns 1.
-If `idx` does not contain a referenced memory, it returns 0;
+If `idx` does not contain a referenced memory, it returns 0.
 
 If `unref` is not `NULL`, it will be called when the memory ceases to point to this block address,
 either by being garbage collected or if it is updated to point to another block address
@@ -325,7 +325,7 @@ void luamem_free (lua_State *L, void *mem, size_t sz);
 
 Equivalent to `luamem_realloc(L, mem, sz, 0)`.
 
-__Note__: Any referenced memory which uses this function as the unrefering function is considered a resizable memory by the `memory` module.
+__Note__: any referenced memory which uses this function as the unrefering function is considered a resizable memory by the `memory` module.
 
 ### `luamem_addvalue`
 
