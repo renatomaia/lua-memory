@@ -1,4 +1,4 @@
-package="luamemory"
+package="memory"
 version="scm-1"
 source = {
 	url = "git://github.com/renatomaia/lua-memory",
