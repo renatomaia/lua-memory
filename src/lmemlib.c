@@ -16,7 +16,7 @@ static const char *lmemfind (const char *s1, size_t l1,
 static int mem_create (lua_State *L) {
 	if (lua_gettop(L) == 0) {
 		luamem_newref(L);
-		luamem_resetref(L, 1, NULL, 0, luamem_free, 0);
+		luamem_resetref(L, 1, LUAMEM_EMPTY, 0, luamem_free, 0);
 	} else {
 		char *p;
 		size_t len;
