@@ -7,7 +7,7 @@ LUA_INCDIR= $(LUA_DIR)/include
 PLAT= guess
 
 CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -I$(LUA_INCDIR) $(SYSCFLAGS) $(MYCFLAGS)
+CFLAGS= -O2 -Wall -I. -I$(LUA_INCDIR) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= $(SYSLIBS) $(MYLIBS)
 
@@ -28,16 +28,18 @@ MYLIBS=
 
 PLATS= guess generic linux macosx solaris
 
+LIB_O= luamem.o
 MEM_O= lmemlib.o
-API_O= luamem.o
+TST_O= ../test/ltestlib.o
 
+LIB_A= libluamem.a
+LIB_S= libluamem.so
 MEM_M= memory.so
-API_S= libluamem.so
-LIB_A= libluamemory.a
+TST_M= memory_test.so
 
-ALL_O= $(MEM_O) $(API_O)
+ALL_O= $(MEM_O) $(LIB_O)
 ALL_A= $(LIB_A)
-ALL_S= $(API_S)
+ALL_S= $(LIB_S)
 ALL_M= $(MEM_M)
 ALL_T= $(ALL_A) $(ALL_S) $(ALL_M)
 
@@ -55,18 +57,24 @@ lib: a so
 
 mod: $(ALL_M)
 
-$(API_S): $(API_O)
-	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
-
-$(MEM_M): $(MEM_O) $(API_S)
-	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
-
 $(LIB_A): $(ALL_O)
 	$(AR) $@ $^
 	$(RANLIB) $@
 
+$(LIB_S): $(LIB_O)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+
+$(MEM_M): $(MEM_O) $(LIB_S)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+
+$(TST_M): $(TST_O) $(LIB_S)
+	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
+
+test: $(TST_M) $(MEM_M)
+	LD_LIBRARY_PATH=. $(LUA_DIR)/bin/lua -e 'package.cpath="./?.so"' ../test/testall.lua
+
 clean:
-	$(RM) $(ALL_T) $(ALL_O)
+	$(RM) $(ALL_T) $(ALL_O) $(TST_M) $(TST_O)
 
 depend:
 	@$(CC) $(CFLAGS) -MM l*.c

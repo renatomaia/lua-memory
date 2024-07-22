@@ -1,4 +1,5 @@
 local memory = require "memory"
+local memtst = require "memory_test"
 
 local maxi, mini = math.maxinteger, math.mininteger
 
@@ -75,6 +76,11 @@ local function testpack(case, ...)
 	end
 end
 
+local function assertcontents(m, expected, ...)
+	assert(memory.diff(m, expected) == nil, ...)
+	memtst.assertcontents(expected, m)
+end
+
 -- memory.type(string), memory:set(i, d), memory:get(i)
 local checkmodifiable do
 	local allchars = {}
@@ -99,7 +105,7 @@ local checkmodifiable do
 		local expected = (size > #allchars)
 			and allchars..string.rep("\0", size - #allchars)
 			or allchars:sub(1, size)
-		assert(memory.diff(b, expected) == nil)
+		assertcontents(b, expected)
 	end
 end
 
@@ -265,10 +271,10 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 	do print(kind, "memory.create(memory|string [, i [, j]]), memory.tostring(memory, [, i [, j]])")
 		local function check(expected, data, ...)
 			local b = memory.create(data, ...)
-			assert(memory.diff(b, expected) == nil)
+			assertcontents(b, expected)
 			checkmodifiable(b, #expected)
 			local b = memory.create(memory.create(data), ...)
-			assert(memory.diff(b, expected) == nil)
+			assertcontents(b, expected)
 			checkmodifiable(b, #expected)
 			assert(memory.tostring(memory.create(data), ...) == expected)
 		end
@@ -331,19 +337,19 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 			for _, S in ipairs({tostring, memory.create}) do
 				local b = memory.create(data)
 				memory.fill(b, S"", i, j)
-				assert(memory.diff(b, data) == nil)
+				assertcontents(b, data)
 				memory.fill(b, S"xuxu", i, j, 5)
-				assert(memory.diff(b, data) == nil)
+				assertcontents(b, data)
 				memory.fill(b, S"abc", i, j)
-				assert(memory.diff(b, expected) == nil, tostring(b))
+				assertcontents(b, expected, tostring(b))
 				memory.fill(b, 0x55, i, j)
-				assert(memory.diff(b, expected:gsub("%S", "\x55")) == nil)
+				assertcontents(b, expected:gsub("%S", "\x55"))
 				memory.fill(b, S"XYZ", i, j, 3)
-				assert(memory.diff(b, expected:gsub("%S", "Z")) == nil)
+				assertcontents(b, expected:gsub("%S", "Z"))
 				memory.fill(b, S"XYZ", i, j, -1)
-				assert(memory.diff(b, expected:gsub("%S", "Z")) == nil)
+				assertcontents(b, expected:gsub("%S", "Z"))
 				memory.fill(b, S(full), i, j)
-				assert(memory.diff(b, expected:gsub("%S+", fillup)) == nil)
+				assertcontents(b, expected:gsub("%S+", fillup))
 			end
 		end
 		check("abcabcabca")
@@ -367,32 +373,32 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		do
 			local b = memory.create(full)
 			memory.fill(b, b)
-			assert(memory.diff(b, full) == nil)
+			assertcontents(b, full)
 		end
 		do
 			local b = memory.create(full)
 			memory.fill(b, 0)
-			assert(memory.diff(b, string.rep("\0", #full)) == nil)
+			assertcontents(b, string.rep("\0", #full))
 		end
 		do
 			local b = memory.create(full)
 			memory.fill(b, b, 11, -1)
-			assert(memory.diff(b, "1234567890123456") == nil)
+			assertcontents(b, "1234567890123456")
 		end
 		do
 			local b = memory.create(full)
 			memory.fill(b, b, 1, 6, 11)
-			assert(memory.diff(b, "ABCDEF7890ABCDEF") == nil)
+			assertcontents(b, "ABCDEF7890ABCDEF")
 		end
 		do
 			local b = memory.create(full)
 			memory.fill(b, b, 1, 10, 7)
-			assert(memory.diff(b, "7890ABCDEFABCDEF") == nil)
+			assertcontents(b, "7890ABCDEFABCDEF")
 		end
 		do
 			local b = memory.create(full)
 			memory.fill(b, b, 7, -1)
-			assert(memory.diff(b, "1234561234567890") == nil)
+			assertcontents(b, "1234561234567890")
 		end
 	end
 
