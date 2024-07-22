@@ -17,7 +17,10 @@
 
 
 LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
-	char *mem = (char *)lua_newuserdatauv(L, memcalsize(l), 0);
+	char *mem = (char *)lua_newuserdatauv(L, memcalcsize(l), 0);
+#ifdef LUAMEM_NULLTERM
+	mem[l] = '\0';
+#endif
 	luaL_newmetatable(L, LUAMEM_ALLOC);
 	lua_setmetatable(L, -2);
 	return mem;

@@ -8,15 +8,15 @@
 
 /*
 @@ LUAMEM_NULLTERM adoption of null terminated memory areas.
-** Define it if you want LuaMemory follow the pattern that memory areas must
-** include a null byte ('\0') immediately after the writable area. This is
+** Define it if you want LuaMemory to follow the pattern that memory areas
+** must include a null byte ('\0') immediately after the writable area. This is
 ** useful to mimic Lua strings. This way, Lua C functions that manipulate
-** strings can be replaced by the equivalent LuaMemory functions to make
-** code that manipulate string also support memories.
+** strings can be replaced by the equivalent LuaMemory functions to easily make
+** C libraries that manipulate string also support memories.
 **
 ** On the other hand, when this is defined, referenced memories created by the
-** application must point to block addresses that are always followed by
-** a null byte ('\0').
+** application must point to block addresses that are always followed by a null
+** byte ('\0').
 */
 /* #define LUAMEM_NULLTERM */
 
@@ -58,7 +58,7 @@
 
 LUAMEMLIB_API char *(luamem_newalloc) (lua_State *L, size_t len);
 
-typedef void (*luamem_Unref) (lua_State *L, void *mem, size_t len);
+typedef void (*luamem_Unref) (lua_State *L, char *mem, size_t len);
 
 LUAMEMLIB_API void (luamem_newref) (lua_State *L);
 LUAMEMLIB_API int (luamem_resetref) (lua_State *L, int idx,
