@@ -152,8 +152,13 @@ All API functions and related types and constants are declared in the header fil
 
 There are two distinct types of memory areas in the C API:
 
-- __allocated__: points to a constant block address with fixed size, which is automatically released when the memory is garbage collected (see [`luamem_newalloc`](#luamem_newalloc)).
-- __referenced__: points to a memory area with block address and size provided by the application, which can provide a unrefering function to be used to free the memory area when it is not pointed by the Lua memory object anymore (see [`luamem_newref`](#luamem_newref)).
+- __allocated__:
+points to a constant block address with fixed size, which is automatically released when the memory is garbage collected
+(see [`luamem_newalloc`](#luamem_newalloc)).
+- __referenced__:
+points to a memory area with block address and size provided by the application,
+which can provide a unrefering function to be used to free the memory area when it is not pointed by the Lua memory object anymore
+(see [`luamem_newref`](#luamem_newref)).
 
 __Warning__: unlike Lua strings, memory areas are not followed by a null byte (`'\0'`).
 
@@ -210,7 +215,9 @@ If `idx` does not contain a referenced memory, it returns 0.
 
 If `unref` is not `NULL`, it will be called when the memory ceases to point to this block address,
 either by being garbage collected or if it is updated to point to another block address
-(by a future call of `luamem_setref` for instance).
+(by a future call of `luamem_resetref` for instance).
+In such case,
+`unref` is called with the values of `L`, `mem`, and `len`.
 
 If `mem` points to the same block address currently pointed by referenced memory at index `idx`,
 or `cleanup` is zero,
@@ -325,7 +332,8 @@ void luamem_free (lua_State *L, void *mem, size_t sz);
 
 Equivalent to `luamem_realloc(L, mem, sz, 0)`.
 
-__Note__: any referenced memory which uses this function as the unrefering function is considered a resizable memory by the `memory` module.
+__Note__:
+any referenced memory which uses this function as the [unrefering function](#luamem_unref) is considered a [resizable memory](#memoryresize-m-l--s) by the [`memory`](#lua-module) module.
 
 ### `luamem_addvalue`
 
