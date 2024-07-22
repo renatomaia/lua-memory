@@ -160,7 +160,26 @@ points to a memory area with block address and size provided by the application,
 which can provide a unrefering function to be used to free the memory area when it is not pointed by the Lua memory object anymore
 (see [`luamem_newref`](#luamem_newref)).
 
-__Warning__: unlike Lua strings, memory areas are not followed by a null byte (`'\0'`).
+__Warning__:
+When compilation flag `LUAMEM_NULLTERM` is not defined,
+memory areas are not followed by a null byte (`'\0'`) like Lua strings.
+
+__Note__:
+When compilation flag `LUAMEM_NULLTERM` is defined,
+you should be able to adapt a Lua library written in C to accept memories along with strings by replacing the following functions in the code of a Lua library.
+However,
+only these replacements might not be enough to adapt the library to handle memories as string.
+For instance,
+`lua_type` returns `LUA_TUSERDATA` for memories instead of `LUA_TSTRING`.
+
+```c
+#define lua_isstring	luamem_isarray
+#define lua_tolstring	luamem_toarray
+#define luaL_addvalue	luamem_addvalue
+#define luaL_checklstring	luamem_checkarray
+#define luaL_optlstring	luamem_optarray
+#define luaL_tolstring	luamem_asarray
+```
 
 ### `luamem_newalloc`
 
@@ -188,13 +207,13 @@ These functions are called whenever a referenced memory ceases to pointo to bloc
 void luamem_newref (lua_State *L);
 ```
 
-Creates and pushes onto the stack a new referenced memory pointing to NULL, with length zero, and no unrefering function (see [`luamem_resetref`](#luamem_resetref)).
+Creates and pushes onto the stack a new referenced memory with length zero, and no unrefering function (see [`luamem_resetref`](#luamem_resetref)).
 
 Referenced memory areas uses a metatable created with name given by constant `LUAMEM_REF` (see [`luaL_newmetatable`](http://www.lua.org/manual/5.3/manual.html#luaL_newmetatable)).
 
 Moreover,
 a referenced memory is [closeable](http://www.lua.org/manual/5.4/manual.html#lua_closeslot).
-Closing a memory at index `idx` is equivalent to `luamem_setref(L, idx, NULL, 0, NULL)`.
+Closing a memory at index `idx` is equivalent to `luamem_setref(L, idx, LUAMEM_EMPTY, 0, NULL)`.
 
 ### `luamem_setref`
 
@@ -212,6 +231,9 @@ int luamem_resetref (lua_State *L, int idx, char *mem, size_t len, luamem_Unref 
 
 Defines the block address (`mem`), size (`len`), and unrefering function (`unref`) of the referenced memory at index `idx`, and returns 1.
 If `idx` does not contain a referenced memory, it returns 0.
+
+When compilation flag `LUAMEM_NULLTERM` is defined,
+`mem` must point to `len` writable bytes followed by a null byte (`'\0'`).
 
 If `unref` is not `NULL`, it will be called when the memory ceases to point to this block address,
 either by being garbage collected or if it is updated to point to another block address
@@ -318,16 +340,20 @@ Checks whether the function argument `arg` is an integer (or can be converted to
 ### `luamem_realloc`
 
 ```C
-void *luamem_realloc (lua_State *L, void *mem, size_t old, size_t new);
+char *luamem_realloc (lua_State *L, char *mem, size_t osize, size_t nsize);
 ```
 
-Reallocates memory pointed by `mem` of size `old` with new size `new` using the allocation function registered by the Lua state (see [`lua_getallocf`](http://www.lua.org/manual/5.3/manual.html#lua_getallocf)).
+Resizes `char` array of length `osize` pointed by `mem` to the new length `nsize` using the allocation function registered by the Lua state (see [`lua_getallocf`](http://www.lua.org/manual/5.3/manual.html#lua_getallocf)).
 Returns the reallocated memory.
+
+__Note__:
+when compilation flag `LUAMEM_NULLTERM` is defined,
+the reallocated memory is always followed by a null byte (`'\0'`).
 
 ### `luamem_free`
 
 ```C
-void luamem_free (lua_State *L, void *mem, size_t sz);
+void luamem_free (lua_State *L, char *mem, size_t sz);
 ```
 
 Equivalent to `luamem_realloc(L, mem, sz, 0)`.
@@ -369,7 +395,7 @@ Index
 [`memory.fill`](#memoryfill-m-s--i--j--o)    | [`LUAMEM_TALLOC`](#luamem_tomemoryx)        | [`luamem_ismemory`](#luamem_ismemory)   
 [`memory.find`](#memoryfind-m-s--i--j--o)    | [`LUAMEM_TNONE`](#luamem_tomemoryx)         | [`luamem_newalloc`](#luamem_newalloc)   
 [`memory.get`](#memoryget-m-i--j)            | [`LUAMEM_TREF`](#luamem_tomemoryx)          | [`luamem_newref`](#luamem_newref)       
-[`memory.len`](#memorylen-m)                 |                                             | [`luamem_realloc`](#luamem_realloc)     
+[`memory.len`](#memorylen-m)                 | [`LUAMEM_NULLTERM`](#luamem_resetref)       | [`luamem_realloc`](#luamem_realloc)     
 [`memory.pack`](#memorypack-m-fmt-i-v)       | [`luamem_Unref`](#luamem_unref)             | [`luamem_resetref`](#luamem_resetref)   
 [`memory.resize`](#memoryresize-m-l--s)      | [`luamem_addvalue`](#luamem_addvalue)       | [`luamem_setref`](#luamem_setref)       
 [`memory.set`](#memoryset-m-i-)              | [`luamem_asarray`](#luamem_asarray)         | [`luamem_toarray`](#luamem_toarray)     

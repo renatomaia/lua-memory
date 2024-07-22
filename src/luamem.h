@@ -6,14 +6,46 @@
 #include <lauxlib.h>
 
 
+/*
+@@ LUAMEM_NULLTERM adoption of null terminated memory areas.
+** Define it if you want LuaMemory to follow the pattern that memory areas
+** must include a null byte ('\0') immediately after the writable area. This is
+** useful to mimic Lua strings. This way, Lua C functions that manipulate
+** strings can be replaced by the equivalent LuaMemory functions to easily make
+** C libraries that manipulate string also support memories.
+**
+** On the other hand, when this is defined, referenced memories created by the
+** application must point to block addresses that are always followed by a null
+** byte ('\0').
+*/
+/* #define LUAMEM_NULLTERM */
 
+#ifdef LUAMEM_NULLTERM
+#define LUAMEM_EMPTY  ((char *)"")
+#else
+#define LUAMEM_EMPTY  NULL
+#endif
+
+/*
+** {==================================================================
+** Marks for exported symbols in the C code
+** ===================================================================
+*/
+
+/*
+@@ LUAMEMLIB_API is a mark for the C library functions.
+*/
 #ifndef LUAMEMLIB_API
 #define LUAMEMLIB_API LUALIB_API
 #endif
 
+/*
+@@ LUAMEMMOD_API is a mark for the Lua module opening function.
+*/
 #ifndef LUAMEMMOD_API
 #define LUAMEMMOD_API LUAMOD_API
 #endif
+
 
 
 #define LUAMEM_TNONE	0
@@ -26,7 +58,7 @@
 
 LUAMEMLIB_API char *(luamem_newalloc) (lua_State *L, size_t len);
 
-typedef void (*luamem_Unref) (lua_State *L, void *mem, size_t len);
+typedef void (*luamem_Unref) (lua_State *L, char *mem, size_t len);
 
 LUAMEMLIB_API void (luamem_newref) (lua_State *L);
 LUAMEMLIB_API int (luamem_resetref) (lua_State *L, int idx,
@@ -53,9 +85,9 @@ LUAMEMLIB_API const char *(luamem_checkarray) (lua_State *L, int idx, size_t *le
 LUAMEMLIB_API const char *(luamem_optarray) (lua_State *L, int arg, const char *def, size_t *len);
 
 
-LUAMEMLIB_API void *(luamem_realloc) (lua_State *L, void *mem, size_t osize,
+LUAMEMLIB_API char *(luamem_realloc) (lua_State *L, char *mem, size_t osize,
                                                                size_t nsize);
-LUAMEMLIB_API void (luamem_free) (lua_State *L, void *memo, size_t size);
+LUAMEMLIB_API void (luamem_free) (lua_State *L, char *memo, size_t size);
 LUAMEMLIB_API size_t (luamem_checklenarg) (lua_State *L, int idx);
 
 

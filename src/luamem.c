@@ -7,8 +7,20 @@
 #include <string.h>
 
 
+#ifdef LUAMEM_NULLTERM
+#define memcalcsize(L)	((L + 1) * sizeof(char))
+#define memgetsize(L,I)	(lua_rawlen(L,I) - 1)
+#else
+#define memcalcsize(L)	(L * sizeof(char))
+#define memgetsize	lua_rawlen
+#endif
+
+
 LUAMEMLIB_API char *luamem_newalloc (lua_State *L, size_t l) {
-	char *mem = (char *)lua_newuserdatauv(L, l * sizeof(char), 0);
+	char *mem = (char *)lua_newuserdatauv(L, memcalcsize(l), 0);
+#ifdef LUAMEM_NULLTERM
+	mem[l] = '\0';
+#endif
 	luaL_newmetatable(L, LUAMEM_ALLOC);
 	lua_setmetatable(L, -2);
 	return mem;
@@ -26,7 +38,7 @@ static int refgc (lua_State *L) {
 	luamem_Ref *ref = (luamem_Ref *)lua_touserdata(L, 1);
 	if (ref && ref->len) {
 		unrefmem(L, ref);
-		ref->mem = NULL;
+		ref->mem = LUAMEM_EMPTY;
 		ref->len = 0;
 		ref->unref = NULL;
 	}
@@ -41,7 +53,7 @@ static const luaL_Reg refmt[] = {  /* metamethods */
 
 LUAMEMLIB_API void luamem_newref (lua_State *L) {
 	luamem_Ref *ref = (luamem_Ref *)lua_newuserdatauv(L, sizeof(luamem_Ref), 0);
-	ref->mem = NULL;
+	ref->mem = LUAMEM_EMPTY;
 	ref->len = 0;
 	ref->unref = NULL;
 	if (luaL_newmetatable(L, LUAMEM_REF)) luaL_setfuncs(L, refmt, 0);
@@ -89,7 +101,7 @@ LUAMEMLIB_API char *luamem_tomemoryx (lua_State *L, int idx,
 	*type = luamem_type(L, idx);
 	switch (*type) {
 		case LUAMEM_TALLOC:
-			if (len) *len = lua_rawlen(L, idx);
+			if (len) *len = memgetsize(L, idx);
 			if (unref) *unref = NULL;
 			return (char *)lua_touserdata(L, idx);
 		case LUAMEM_TREF: {
@@ -155,14 +167,24 @@ LUAMEMLIB_API const char *luamem_optarray (lua_State *L,
 }
 
 
-LUAMEMLIB_API void *luamem_realloc(lua_State *L, void *mem, size_t osize,
+LUAMEMLIB_API char *luamem_realloc(lua_State *L, char *mem, size_t osize,
                                                             size_t nsize) {
 	void *userdata;
 	lua_Alloc alloc = lua_getallocf(L, &userdata);
-	return alloc(userdata, mem, osize, nsize);
+#ifdef LUAMEM_NULLTERM
+	if (osize) osize++;
+	else mem = NULL;  /* mem == LUAMEM_EMPTY */
+	if (nsize) nsize++;
+#endif
+	mem = (char *)alloc(userdata, mem, osize, nsize);
+#ifdef LUAMEM_NULLTERM
+	if (nsize) mem[nsize - 1] = '\0';
+	else mem = LUAMEM_EMPTY;
+#endif
+	return mem;
 }
 
-LUAMEMLIB_API void luamem_free(lua_State *L, void *mem, size_t size) {
+LUAMEMLIB_API void luamem_free(lua_State *L, char *mem, size_t size) {
 	luamem_realloc(L, mem, size, 0);
 }
 
