@@ -28,6 +28,10 @@ Documentation
 History
 -------
 
+### Version 2.1
+- `luamem_realloc` and `luamem_free` operate on `char *` instead of `void *`.
+- Compilation flag [`LUAMEM_NULLTERM`](src/luamem.h) to define that memories shall be null terminated.
+
 ### Version 2.0
 - Updated to Lua 5.4.
 - [Referenced](doc/manual.md#luamem_newref) (and [resizable](doc/manual.md#memorycreate-m--i--j)) memories are [closeable](http://www.lua.org/manual/5.4/manual.html#3.3.8).
