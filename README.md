@@ -31,6 +31,7 @@ History
 ### Version 2.1
 - `luamem_realloc` and `luamem_free` operate on `char *` instead of `void *`.
 - Compilation flag [`LUAMEM_NULLTERM`](src/luamem.h) to define that memories shall be null terminated.
+- `memory.resize` now has an optional argument with an offset for `s`.
 
 ### Version 2.0
 - Updated to Lua 5.4.

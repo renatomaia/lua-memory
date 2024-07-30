@@ -114,8 +114,7 @@ local function newresizable(s, i, j)
 	if type(s) == "number" then
 		memory.resize(m, s)
 	elseif s ~= nil then
-		s = string.sub(tostring(s), i or 1, j)
-		memory.resize(m, #s, s)
+		memory.resize(m, #memory.tostring(s, i, j), s, i)
 	end
 	return m
 end
@@ -551,7 +550,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 
 		local mem = memory.create(#s+1)
 		asserterr("does not fit", memory.pack, mem, "s1", 1, s)
-		asserterr("contains zeros", memory.pack, mem, "z", 1, "alo\0");
+		asserterr("contains zeros", memory.pack, mem, "z", 1, "alo\0")
 
 		-- create memory with no '\0' after its end
 		local nozero = memory.create()
@@ -560,9 +559,9 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 		local ok, pos = memory.pack(mem, "z", 1, nozero)
 		assert(ok == true)
 		assert(pos == 3002)
-		assert(tostring(mem) == s.."\0");
+		assert(tostring(mem) == s.."\0")
 
-		asserterr("unfinished string for format 'z'", memory.unpack, nozero, "z");
+		asserterr("unfinished string for format 'z'", memory.unpack, nozero, "z")
 
 		for i = 2, NB do
 			testpack(" s"..i, s)
@@ -640,7 +639,7 @@ for kind, newmem in pairs{fixedsize=memory.create, resizable=newresizable} do
 	end
 end
 
-do print "memory.resize(m, size [, s])"
+do print "memory.resize(m, size [, s [, o]])"
 	local m = memory.create(3)
 	asserterr("resizable memory expected", memory.resize, m, 10)
 
@@ -666,6 +665,9 @@ do print "memory.resize(m, size [, s])"
 
 	memory.resize(m, 10, "xyz")
 	assert(tostring(m) == "abcdexyzxy")
+
+	memory.resize(m, 15, "12345", 3)
+	assert(tostring(m) == "abcdexyzxy34534")
 
 	memory.resize(m, 5, "123")
 	assert(tostring(m) == "abcde")
