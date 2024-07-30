@@ -68,13 +68,14 @@ Otherwise it returns `nil`.
 
 Returns the size of memory `m`.
 
-### `memory.resize (m, l [, s])`
+### `memory.resize (m, l [, s [, o]])`
 
 Changes resizable memory `m` to contain `l` bytes.
 
 All the initial bytes that fit in the new size are preserved.
-Any extra bytes are set with the contents of string or memory `s` when it is provided
-(the contents from `s` are copied repeatedly until they fill all the extra bytes).
+When string or memory `s` is provided,
+any extra bytes are set with the contents of `s` from position `o` of `s`.
+(these contents are copied repeatedly until they fill all the extra bytes).
 Otherwise,
 the extra bytes are set to zero.
 

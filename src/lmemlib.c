@@ -66,9 +66,13 @@ static int mem_resize (lua_State *L) {
 		if (size && !resized) return luaL_error(L, "out of memory");
 		luamem_resetref(L, 1, resized, size, luamem_free, 0 /* don't free 'mem' */);
 		if (n) {
+			size_t os = posrelatI(luaL_optinteger(L, 4, 1), sl);
 			resized += len;
-			if (sl) memfill(resized, n, s, sl);
-			else memset(resized, 0, n*sizeof(char));
+			if (os > sl) memset(resized, 0, n*sizeof(char));
+			else {
+				os--;
+				memfill(resized, n, s+os, sl-os);
+			}
 		}
 	}
 	return 0;
