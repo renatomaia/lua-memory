@@ -7,7 +7,7 @@ LUA_INCDIR= $(LUA_DIR)/include
 PLAT= guess
 
 CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -I$(LUA_INCDIR) $(SYSCFLAGS) $(MYCFLAGS)
+CFLAGS= -O2 -Wall -I. -I$(LUA_INCDIR) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= $(SYSLIBS) $(MYLIBS)
 
@@ -30,7 +30,7 @@ PLATS= guess generic linux macosx solaris
 
 LIB_O= luamem.o
 MEM_O= lmemlib.o
-TST_O= ltstlib.o
+TST_O= ../test/ltestlib.o
 
 LIB_A= libluamem.a
 LIB_S= libluamem.so
@@ -71,7 +71,7 @@ $(TST_M): $(TST_O) $(LIB_S)
 	$(LD) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 test: $(TST_M) $(MEM_M)
-	$(LUA_DIR)/bin/lua -e 'package.cpath="./?.so"' ../test/testall.lua
+	LD_LIBRARY_PATH=. $(LUA_DIR)/bin/lua -e 'package.cpath="./?.so"' ../test/testall.lua
 
 clean:
 	$(RM) $(ALL_T) $(ALL_O) $(TST_M) $(TST_O)
