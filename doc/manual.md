@@ -319,6 +319,25 @@ const char *luamem_asarray (lua_State *L, int idx, size_t *len);
 If the value at the given index is a memory it behaves like [`luamem_tomemory`](#luamem_tomemory), but retuning a pointer to constant bytes.
 Otherwise, it is equivalent to [`luaL_tolstring`](http://www.lua.org/manual/5.3/manual.html#luaL_tolstring).
 
+### `luamem_optarray`
+
+```C
+const char *luamem_optarray (lua_State *L, int arg, const char *def, size_t *len);
+```
+
+If the function argument `arg` is a memory or string, returns a pointer to its contents;
+If this argument is absent or is `nil`, returns `def`.
+Otherwise, raises an error.
+
+If `len` is not NULL,
+fills its referent with the result's length.
+If the result is NULL
+(only possible when returning `def` and `def == NULL`),
+its length is considered zero.
+
+This function uses [`luamem_checkarray`](#luamem_checkarray) to get its result,
+so all conversions and caveats of that function apply here.
+
 ### `luamem_checkarray`
 
 ```C
@@ -373,17 +392,18 @@ Similar to [`luaL_addvalue`](http://www.lua.org/manual/5.3/manual.html#luaL_addv
 Index
 =====
 
-[Lua functions](#lua-module) | [C API](#c-library) | [C API](#c-library)
----|---|---
-[`memory.create`](#memorycreate-m--i--j)     | [`LUAMEM_ALLOC`](#luamem_newalloc)          | [`luamem_free`](#luamem_free)           
-[`memory.diff`](#memorydiff-m1-m2)           | [`LUAMEM_REF`](#luamem_newref)              | [`luamem_isarray`](#luamem_isarray)     
-[`memory.fill`](#memoryfill-m-s--i--j--o)    | [`LUAMEM_TALLOC`](#luamem_tomemoryx)        | [`luamem_ismemory`](#luamem_ismemory)   
-[`memory.find`](#memoryfind-m-s--i--j--o)    | [`LUAMEM_TNONE`](#luamem_tomemoryx)         | [`luamem_newalloc`](#luamem_newalloc)   
-[`memory.get`](#memoryget-m-i--j)            | [`LUAMEM_TREF`](#luamem_tomemoryx)          | [`luamem_newref`](#luamem_newref)       
-[`memory.len`](#memorylen-m)                 | [`LUAMEM_NULLTERM`](#luamem_resetref)       | [`luamem_realloc`](#luamem_realloc)     
-[`memory.pack`](#memorypack-m-fmt-i-v)       | [`luamem_Unref`](#luamem_unref)             | [`luamem_resetref`](#luamem_resetref)   
-[`memory.resize`](#memoryresize-m-l--s)      | [`luamem_addvalue`](#luamem_addvalue)       | [`luamem_setref`](#luamem_setref)       
-[`memory.set`](#memoryset-m-i-)              | [`luamem_asarray`](#luamem_asarray)         | [`luamem_toarray`](#luamem_toarray)     
-[`memory.tostring`](#memorytostring-m--i--j) | [`luamem_checkarray`](#luamem_checkarray)   | [`luamem_tomemory`](#luamem_tomemory)   
-[`memory.type`](#memorytype-m)               | [`luamem_checklenarg`](#luamem_checklenarg) | [`luamem_tomemoryx`](#luamem_tomemoryx) 
-[`memory.unpack`](#memoryunpack-m-fmt--i)    | [`luamem_checkmemory`](#luamem_checkmemory) | [`luamem_type`](#luamem_type)           
+| [Lua functions](#lua-module) | [C API](#c-library) | [C API](#c-library) |
+|---|---|---|
+| [`memory.create`](#memorycreate-m--i--j)     | [`LUAMEM_ALLOC`](#luamem_newalloc)          | [`luamem_free`](#luamem_free)           |
+| [`memory.diff`](#memorydiff-m1-m2)           | [`LUAMEM_REF`](#luamem_newref)              | [`luamem_isarray`](#luamem_isarray)     |
+| [`memory.fill`](#memoryfill-m-s--i--j--o)    | [`LUAMEM_TALLOC`](#luamem_tomemoryx)        | [`luamem_ismemory`](#luamem_ismemory)   |
+| [`memory.find`](#memoryfind-m-s--i--j--o)    | [`LUAMEM_TNONE`](#luamem_tomemoryx)         | [`luamem_newalloc`](#luamem_newalloc)   |
+| [`memory.get`](#memoryget-m-i--j)            | [`LUAMEM_TREF`](#luamem_tomemoryx)          | [`luamem_newref`](#luamem_newref)       |
+| [`memory.len`](#memorylen-m)                 | [`LUAMEM_NULLTERM`](#luamem_resetref)       | [`luamem_optarray`](#luamem_optarray)   |
+| [`memory.pack`](#memorypack-m-fmt-i-v)       |                                             | [`luamem_realloc`](#luamem_realloc)     |
+| [`memory.resize`](#memoryresize-m-l--s)      | [`luamem_Unref`](#luamem_unref)             | [`luamem_resetref`](#luamem_resetref)   |
+| [`memory.set`](#memoryset-m-i-)              | [`luamem_addvalue`](#luamem_addvalue)       | [`luamem_setref`](#luamem_setref)       |
+| [`memory.tostring`](#memorytostring-m--i--j) | [`luamem_asarray`](#luamem_asarray)         | [`luamem_toarray`](#luamem_toarray)     |
+| [`memory.type`](#memorytype-m)               | [`luamem_checkarray`](#luamem_checkarray)   | [`luamem_tomemory`](#luamem_tomemory)   |
+| [`memory.unpack`](#memoryunpack-m-fmt--i)    | [`luamem_checklenarg`](#luamem_checklenarg) | [`luamem_tomemoryx`](#luamem_tomemoryx) |
+|                                              | [`luamem_checkmemory`](#luamem_checkmemory) | [`luamem_type`](#luamem_type)           |
