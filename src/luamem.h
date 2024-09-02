@@ -1,5 +1,5 @@
-#ifndef lstraux_h
-#define lstraux_h
+#ifndef luamem_h
+#define luamem_h
 
 
 #include <lua.h>
@@ -18,7 +18,7 @@
 ** application must point to block addresses that are always followed by a null
 ** byte ('\0').
 */
-/* #define LUAMEM_NULLTERM */
+#define LUAMEM_NULLTERM
 
 #ifdef LUAMEM_NULLTERM
 #define LUAMEM_EMPTY  ((char *)"")
