@@ -370,22 +370,6 @@ void luamem_addvalue (luaL_Buffer *B);
 
 Similar to [`luaL_addvalue`](http://www.lua.org/manual/5.3/manual.html#luaL_addvalue), but if the value on top of the stack is a memory, it adds its contents to the buffer without converting it to a Lua string.
 
-### `luamem_pushresult`
-
-```C
-void luamem_pushresult (luaL_Buffer *B);
-```
-
-Similar to [`luamem_pushresult`](http://www.lua.org/manual/5.3/manual.html#luaL_pushresult), but leaves a memory with the buffer contents on the top of the stack instead of a string.
-
-### `luamem_pushresultsize`
-
-```C
-void luamem_pushresultsize (luaL_Buffer *B, size_t sz);
-```
-
-Equivalent to the sequence [`luaL_addsize`](http://www.lua.org/manual/5.3/manual.html#luaL_addsize), [`luamem_pushresult`](#luamem_pushresult).
-
 Index
 =====
 
