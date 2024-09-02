@@ -79,6 +79,7 @@ LUAMEMLIB_API int luamem_resetref (lua_State *L, int idx,
 LUAMEMLIB_API int luamem_type (lua_State *L, int idx) {
 	int type = LUAMEM_TNONE;
 	if (lua_type(L, idx) == LUA_TUSERDATA) {
+		luaL_checkstack(L, 2, "not enough memory");
 		if (lua_getmetatable(L, idx)) {  /* does it have a metatable? */
 			luaL_getmetatable(L, LUAMEM_ALLOC);  /* get allocated memory metatable */
 			if (lua_rawequal(L, -1, -2)) type = LUAMEM_TALLOC;
