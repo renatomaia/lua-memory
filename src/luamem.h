@@ -21,7 +21,7 @@
 /* #define LUAMEM_NULLTERM */
 
 #ifdef LUAMEM_NULLTERM
-#define LUAMEM_EMPTY  ""
+#define LUAMEM_EMPTY  ((char *)"")
 #else
 #define LUAMEM_EMPTY  NULL
 #endif

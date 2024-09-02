@@ -165,6 +165,23 @@ __Warning__:
 When compilation flag `LUAMEM_NULLTERM` is not defined,
 memory areas are not followed by a null byte (`'\0'`) like Lua strings.
 
+__Note__:
+When compilation flag `LUAMEM_NULLTERM` is defined,
+you should be able to adapt a Lua library written in C to accept memories along with strings by replacing the following functions in the code of a Lua library.
+However,
+only these replacements might not be enough to adapt the library to handle memories as string.
+For instance,
+`lua_type` returns `LUA_TUSERDATA` for memories instead of `LUA_TSTRING`.
+
+```c
+#define lua_isstring	luamem_isarray
+#define lua_tolstring	luamem_toarray
+#define luaL_addvalue	luamem_addvalue
+#define luaL_checklstring	luamem_checkarray
+#define luaL_optlstring	luamem_optarray
+#define luaL_tolstring	luamem_asarray
+```
+
 ### `luamem_newalloc`
 
 ```C
