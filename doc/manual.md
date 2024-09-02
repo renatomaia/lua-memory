@@ -316,7 +316,8 @@ Otherwise, it is equivalent to [`lua_tolstring`](http://www.lua.org/manual/5.3/m
 const char *luamem_asarray (lua_State *L, int idx, size_t *len);
 ```
 
-If the value at the given index is a memory it behaves like [`luamem_tomemory`](#luamem_tomemory), but retuning a pointer to constant bytes.
+If the value at the given index is a memory it pushes the value onto the stack,
+and behaves like [`luamem_tomemory`](#luamem_tomemory)`(L, -1, len)`, but retuning a pointer to constant bytes.
 Otherwise, it is equivalent to [`luaL_tolstring`](http://www.lua.org/manual/5.3/manual.html#luaL_tolstring).
 
 ### `luamem_optarray`

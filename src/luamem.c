@@ -140,6 +140,7 @@ LUAMEMLIB_API const char *luamem_asarray (lua_State *L, int idx, size_t *len) {
 	int type;
 	const char *s = luamem_tomemoryx(L, idx, len, NULL, &type);
 	if (type == LUAMEM_TNONE) return luaL_tolstring(L, idx, len);
+	lua_pushvalue(L, idx);
 	return s;
 }
 
