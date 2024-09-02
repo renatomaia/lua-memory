@@ -51,5 +51,5 @@ This will install the C library in `/usr/local` by default.
 Now you can install the Lua module as a rock using the provided [rockspec](../etc/luamemory-scm-1.rockspec):
 
 ```shell
-luarocks make etc/luamemory-scm-1.rockspec
+luarocks make etc/memory-scm-1.rockspec
 ```
