@@ -16,20 +16,9 @@ description = {
 dependencies = {
 	"lua >= 5.4",
 }
-external_dependencies = {
-	LUAMEM = {
-		header = "luamem.h",
-		library = "luamem",
-	},
-}
 build = {
 	type = "builtin",
 	modules = {
-		memory = {
-			sources = "src/lmemlib.c",
-			libdirs = "$(LUAMEM_LIBDIR)",
-			incdirs = "$(LUAMEM_INCDIR)",
-			libraries = external_dependencies.LUAMEM.library,
-		},
+		memory = {"src/lmemlib.c", "src/luamem.c"},
 	},
 }
