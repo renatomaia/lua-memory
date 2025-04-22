@@ -18,8 +18,6 @@
 ** application must point to block addresses that are always followed by a null
 ** byte ('\0').
 */
-#define LUAMEM_NULLTERM
-
 #ifdef LUAMEM_NULLTERM
 #define LUAMEM_EMPTY  ((char *)"")
 #else

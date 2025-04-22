@@ -14,11 +14,21 @@ description = {
 	license = "MIT/X11"
 }
 dependencies = {
-	"lua >= 5.4",
+	"lua >= 5.4, < 5.5",
 }
 build = {
-	type = "builtin",
-	modules = {
-		memory = {"src/lmemlib.c", "src/luamem.c"},
+	type = "cmake",
+	variables = {
+		CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS = "ON",
+		CMAKE_INSTALL_PREFIX = "$(PREFIX)",
+		CMAKE_LIBRARY_PATH = "$(LUA_LIBDIR)",
+		LUA_INCLUDE_DIR = "$(LUA_INCDIR)",
+		LIBRARY_DESTINATION = "$(PREFIX)/library",
+		MODULE_DESTINATION = "$(LIBDIR)",
+	},
+	copy_directories = {
+		"demo",
+		"doc",
+		"test",
 	},
 }
