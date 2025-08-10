@@ -1,6 +1,5 @@
 #define luamem_c
 #define LUA_LIB
-#define LUAMEMLIB_API
 
 #include "luamem.h"
 

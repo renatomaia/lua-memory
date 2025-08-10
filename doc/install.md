@@ -43,37 +43,6 @@ cmake --build build --config Release
 cmake --install build
 ```
 
-Added to Lua
-------------
-
-You can build Lua's library to include LuaMemory's C API together with its standard C API.
-
-```shell
-curl -L -R -O https://www.lua.org/ftp/lua-5.5.0.tar.gz
-tar zxf lua-5.5.0.tar.gz
-cd lua-5.5.0
-make all test \
-     MYOBJS=../../src/luamem.c \
-     MYCFLAFS=-I../../src
-```
-
-In such case,
-there is no need for LuaMemory's C library.
-In particular,
-you can build LuaMemory's module without any libraries,
-because the symbols from LuaMemory's C API will be available with the rest of the standard Lua C API.
-For instance,
-you can build LuaMemory's module by replacing the field `build` in the [rockspec](../etc/luamemory-scm-1.rockspec) with the following:
-
-```lua
-build = {
-	type = "buildin",
-	modules = {
-		memory = "src/memory.c",
-	},
-}
-```
-
 Expose The C API Dynamically
 ============================
 
