@@ -1,5 +1,6 @@
 local memory = require "memory"
-local memtst = require "memory_test"
+local ok, res = pcall(require, "memory_test")
+local memtst = ok and res
 
 local maxi, mini = math.maxinteger, math.mininteger
 
@@ -78,7 +79,9 @@ end
 
 local function assertcontents(m, expected, ...)
 	assert(memory.diff(m, expected) == nil, ...)
-	memtst.assertcontents(expected, m)
+	if memtst then
+		memtst.assertcontents(expected, m)
+	end
 end
 
 -- memory.type(string), memory:set(i, d), memory:get(i)

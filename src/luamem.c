@@ -224,6 +224,23 @@ LUAMEMLIB_API size_t luamem_checklenarg (lua_State *L, int idx) {
 */
 
 /*
+** Internal assertions for in-house debugging
+*/
+#if defined LUAI_ASSERT
+#undef NDEBUG
+#include <assert.h>
+#define lua_assert(c)           assert(c)
+#define assert_code(c)		c
+#endif
+
+#if defined(lua_assert)
+#else
+#define lua_assert(c)		((void)0)
+#define assert_code(c)		((void)0)
+#endif
+
+
+/*
 ** {======================================================
 ** Generic Buffer manipulation
 ** =======================================================
@@ -288,7 +305,7 @@ static void newbox (lua_State *L) {
 */
 #define checkbufferlevel(B,idx)  \
 	lua_assert(buffonstack(B) ? lua_touserdata(B->L, idx) != NULL  \
-		                        : lua_touserdata(B->L, idx) == (void*)B)
+	                          : lua_touserdata(B->L, idx) == (void*)B)
 
 
 /*

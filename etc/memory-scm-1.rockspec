@@ -14,17 +14,18 @@ description = {
 	license = "MIT/X11"
 }
 dependencies = {
-	"lua >= 5.4, < 5.5",
+	"lua >= 5.4, < 5.6",
 }
 build = {
 	type = "cmake",
 	variables = {
 		CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS = "ON",
 		CMAKE_INSTALL_PREFIX = "$(PREFIX)",
-		CMAKE_LIBRARY_PATH = "$(LUA_LIBDIR)",
+		CMAKE_INSTALL_LIBDIR = "$(PREFIX)/library",
+		LUA_MODULE_DIR = "$(LIBDIR)",
 		LUA_INCLUDE_DIR = "$(LUA_INCDIR)",
-		LIBRARY_DESTINATION = "$(PREFIX)/library",
-		MODULE_DESTINATION = "$(LIBDIR)",
+		LUA_LIBRARY_DIR = "$(LUA_LIBDIR)",
+		LUA_LIBRARY_FILE = "$(LUA_LIBDIR_FILE)",
 	},
 	copy_directories = {
 		"demo",
