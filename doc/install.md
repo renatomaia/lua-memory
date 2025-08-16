@@ -38,7 +38,7 @@ CMake
 You also can build both the [Lua module](manual.md#lua-module) and the [C library](manual.md#c-library) with [CMake](https://cmake.org/):
 
 ```shell
-cmake -B build -S . -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON -DCMAKE_INSTALL_PREFIX="C:\Users\devel\Work\sandbox" -DCMAKE_INSTALL_LIBDIR="C:\Users\devel\Work\sandbox\library" -DLUA_MODULE_DIR="C:\Users\devel\Work\sandbox\lib" -DLUA_INCLUDE_DIR="C:\Users\devel\Work\LuaRocks\include" -DLUA_LIBRARY_DIR="C:\Users\devel\Work\LuaRocks\lib" -DLUA_LIBRARY_FILE="lua54.lib"
+cmake -B build -S .
 cmake --build build --config Release
 cmake --install build
 ```
@@ -47,7 +47,7 @@ Expose The C API Dynamically
 ============================
 
 You can make LuaMemory's C library available to dynamically loaded modules by loading it with `package.loadlib(libname, "*")`,
-as documented [here](file:///home/renato/work/foss/lua/proj/coutil/bundle/lua-5.4.7/doc/manual.html#pdf-package.loadlib).
+as documented [here](https://www.lua.org/manual/5.4/manual.html#pdf-package.loadlib).
 
 Moreover,
 since LuaMemory's module is linked to its C library by default,
