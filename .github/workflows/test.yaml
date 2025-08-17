@@ -1,9 +1,23 @@
-name: test
-
-on: [push]
+on:
+  workflow_call:
+    inputs:
+      builder:
+        type: string
+        required: true
+      luamem_lib_path:
+        type: string
+        required: true
+      luamem_lib_name:
+        type: string
+        default: luamem
+      luarocks:
+        type: boolean
+        default: false
 
 jobs:
+
   test:
+
     strategy:
       matrix:
         platform:
@@ -14,46 +28,50 @@ jobs:
 
     steps:
     - uses: actions/checkout@master
+
     - uses: ilammy/msvc-dev-cmd@v1
       if: ${{ contains(matrix.platform, 'windows') }}
     - uses: leafo/gh-actions-lua@v11
       with:
         luaVersion: "5.4"
+
     - uses: luarocks/gh-actions-luarocks@master
+      if: ${{ inputs.luarocks }}
 
     - name: build
-      run: luarocks make etc/memory-scm-1.rockspec
+      run: ${{ inputs.builder }}
 
     - name: test-lib-linux
       if: ${{ contains(matrix.platform, 'ubuntu') }}
       run: |
-        cd test && \
-        gcc -o memory_test.so ltestlib.c \
+        gcc -o test/memory_test.so test/ltestlib.c \
             --shared \
-            -fPIC -DLUA_USE_MACOSX -I../src -I../.lua/include
+            -fPIC -DLUA_USE_MACOSX -Isrc -I.lua/include
 
     - name: test-lib-macos
       if: ${{ contains(matrix.platform, 'macos') }}
       run: |
-        cd test && \
         export MACOSX_DEPLOYMENT_TARGET="10.10"; \
-        gcc -o memory_test.so ltestlib.c \
+        gcc -o test/memory_test.so test/ltestlib.c \
             -bundle -undefined dynamic_lookup \
-            -fno-common -DLUA_USE_MACOSX -I../src -I../.lua/include
+            -fno-common -DLUA_USE_MACOSX -Isrc -I.lua/include
 
     - name: test-lib-win
       if: ${{ contains(matrix.platform, 'windows') }}
       shell: cmd
       run: |
-        luarocks show --rock-dir memory > memory.path
-        set /p MEMORY_ROCKDIR=<memory.path
-        cd test && ^
-        cl.exe /nologo /I%MEMORY_ROCKDIR%\include /I..\.lua\include /c ltestlib.c && ^
-        link.exe /nologo /dll ^
-                 /out:memory_test.dll ^
-                 /LIBPATH:..\.lua\lib ^
-                 /LIBPATH:%MEMORY_ROCKDIR%\library ^
-                 ltestlib.obj lua54.lib luamem.lib
+        if "${{ inputs.luamem_lib_path }}"=="MEMORY_ROCK" (
+          for /F "tokens=* USEBACKQ" %%F in (`luarocks show --rock-dir memory`) do (
+            set MEMORY_LIBDIR=%%F\library
+          )
+        ) else (
+          set MEMORY_LIBDIR=${{ inputs.luamem_lib_path }}
+        )
+
+        cl.exe /nologo /Isrc /I.lua\include /c test\ltestlib.c /Fo:test\ltestlib.obj
+        link.exe /nologo /dll /out:test\memory_test.dll ^
+                 /LIBPATH:.lua\lib /LIBPATH:%MEMORY_LIBDIR% ^
+                 test\ltestlib.obj lua54.lib ${{ inputs.luamem_lib_name }}.lib
 
     - name: test
       run: cd test && lua testall.lua

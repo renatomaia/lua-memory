@@ -1,0 +1,22 @@
+name: build
+
+on:
+- push
+
+jobs:
+
+  luarocks:
+    uses: ./.github/workflows/test.yaml
+    with:
+      luarocks: true
+      builder: luarocks make etc/memory-scm-1.rockspec
+      luamem_lib_path: MEMORY_ROCK
+
+  cmake:
+    uses: ./.github/workflows/test.yaml
+    with:
+      builder: |
+        cmake -B build -S . '-DCMAKE_INSTALL_PREFIX=installed' '-DCMAKE_PREFIX_PATH=.lua' '-DLUA_MODULE_DIR=test'
+        cmake --build build --config Release
+        cmake --install build
+      luamem_lib_path: installed/lib

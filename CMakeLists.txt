@@ -1,7 +1,14 @@
 cmake_minimum_required (VERSION 3.18)
 project(LuaMemory)
 
+if (WIN32)
+  set(DEFAULT_LINK_TO_LUA_LIB ON)
+else ()
+  set(DEFAULT_LINK_TO_LUA_LIB OFF)
+endif ()
+
 option(NULLTERM "Adopt null terminated memory areas?" ON)
+option(LINK_TO_LUA_LIB "Link to Lua library?" ${DEFAULT_LINK_TO_LUA_LIB})
 
 if(NULLTERM)
   add_compile_definitions(LUAMEM_NULLTERM)
@@ -21,12 +28,10 @@ if(NOT TARGET Lua::Lua)
     )
   endif()
   add_library(Lua::Lua INTERFACE IMPORTED)
-  set_target_properties(
-    Lua::Lua
-    PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}"
-      INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}"
-  )
+  set_target_properties(Lua::Lua PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}")
+  if (LINK_TO_LUA_LIB)
+    set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
+  endif()
 endif()
 
 add_library(luamem "src/luamem.c")
